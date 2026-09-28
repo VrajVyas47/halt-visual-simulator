@@ -13,6 +13,7 @@ import {
   Cpu,
   Layers,
   Check,
+  Sliders,
 } from 'lucide-react';
 import {
   CASE_STUDY_LINEAR_GAS,
@@ -43,6 +44,44 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
   const [complexity, setComplexity] = useState<ComplexityClass>('on2');
   const [inputN, setInputN] = useState<number>(100);
   const [viewMode, setViewMode] = useState<'chart' | 'terminal'>('chart');
+  const [chartScale, setChartScale] = useState<'auto' | 'block'>('auto');
+  const [hoveredPoint, setHoveredPoint] = useState<{ n: number; gas: number; notes?: string; isAnomalous?: boolean } | null>(null);
+
+  // Active Case Study dataset for current complexity
+  const activeCaseStudyPoints = React.useMemo(() => {
+    if (complexity === 'o1') return CASE_STUDY_FIXED_GAS;
+    if (complexity === 'on') return CASE_STUDY_LINEAR_GAS.filter((p) => p.n <= 200);
+    return CASE_STUDY_QUADRATIC_GAS;
+  }, [complexity]);
+
+  // Max Y calculation based on scale mode and complexity
+  const chartMaxY = React.useMemo(() => {
+    if (chartScale === 'block') return 10_000_000;
+    if (complexity === 'o1') return 50_000;
+    if (complexity === 'on') return 80_000;
+    return 3_500_000;
+  }, [chartScale, complexity]);
+
+  // Points for SVG path
+  const curvePoints = React.useMemo(() => {
+    if (mode === 'casestudy') {
+      return activeCaseStudyPoints.map((pt) => ({
+        n: pt.n,
+        gas: 21000 + pt.gas,
+        notes: pt.notes,
+        isAnomalous: pt.isAnomalous,
+      }));
+    } else {
+      const nSteps = [0, 10, 20, 30, 40, 50, 60, 70, 80, 100, 120, 140, 160, 180, 200];
+      return nSteps.map((nVal) => {
+        let gas = 21000;
+        if (complexity === 'o1') gas += 1421;
+        else if (complexity === 'on') gas += nVal * 190;
+        else if (complexity === 'on2') gas += nVal * nVal * 194;
+        return { n: nVal, gas, isAnomalous: false };
+      });
+    }
+  }, [mode, complexity, activeCaseStudyPoints]);
 
   // Master Fuel Cell / Gas Budget state
   const [gasInitialCap, setGasInitialCap] = useState<number>(100_000);
@@ -743,51 +782,78 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
         {/* Right Column: Comparative Graph Bay & Live Terminal Stream */}
         <div className="lg:col-span-7 bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-mint" />
-              <span className="font-display text-base text-cream font-semibold">
-                {viewMode === 'terminal'
-                  ? 'LIVE EVM OPCODES & TX TRACE'
-                  : mode === 'casestudy'
-                  ? 'CASE-STUDY MEASURED GAS EXPENDITURE'
-                  : 'THEORETICAL OPERATION GROWTH VS GAS CEILING'}
-              </span>
+              <div className="flex flex-col">
+                <span className="font-display text-sm sm:text-base text-cream font-semibold">
+                  {viewMode === 'terminal'
+                    ? 'LIVE EVM OPCODES & TX TRACE'
+                    : mode === 'casestudy'
+                    ? 'CASE-STUDY MEASURED GAS EXPENDITURE'
+                    : 'THEORETICAL OPERATION GROWTH VS GAS CEILING'}
+                </span>
+                <span className="font-mono text-[10px] text-muted-light">
+                  {complexity.toUpperCase()} COMPLEXITY • {mode === 'casestudy' ? 'EMPIRICAL BENCHMARKS' : 'ANALYTIC CURVE'}
+                </span>
+              </div>
             </div>
 
-            {/* View Switcher: Chart vs Live Terminal */}
-            <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-surface-highest/50">
-              <button
-                onClick={() => setViewMode('chart')}
-                className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer ${
-                  viewMode === 'chart'
-                    ? 'bg-cream text-canvas font-bold shadow-xs'
-                    : 'text-muted-light hover:text-cream'
-                }`}
-                type="button"
-              >
-                CHART VIEW
-              </button>
-              <button
-                onClick={() => setViewMode('terminal')}
-                className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer flex items-center gap-1 ${
-                  viewMode === 'terminal'
-                    ? 'bg-cream text-canvas font-bold shadow-xs'
-                    : 'text-muted-light hover:text-cream'
-                }`}
-                type="button"
-              >
-                <Terminal className="w-3 h-3" />
-                <span>TX MONITOR</span>
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Hovered point readout */}
+              {viewMode === 'chart' && hoveredPoint && (
+                <span className="hidden md:inline-block px-2 py-0.5 rounded font-mono text-[11px] bg-mint/15 border border-mint/40 text-mint font-bold animate-fadeIn">
+                  N = {hoveredPoint.n}: {hoveredPoint.gas.toLocaleString()} GAS
+                </span>
+              )}
+
+              {/* Scale Mode Toggle (Visible in Chart View) */}
+              {viewMode === 'chart' && (
+                <button
+                  onClick={() => setChartScale(chartScale === 'auto' ? 'block' : 'auto')}
+                  className="px-2.5 py-1 rounded font-mono text-[11px] bg-surface hover:bg-surface-high border border-surface-highest/50 text-cream-dim hover:text-cream transition-colors flex items-center gap-1 cursor-pointer select-none"
+                  type="button"
+                  title="Toggle between focused curve autoscaling and global 10M EVM block ceiling view"
+                >
+                  <Sliders className="w-3 h-3 text-mint" />
+                  <span>SCALE: {chartScale === 'auto' ? 'FOCUSED' : 'BLOCK (10M)'}</span>
+                </button>
+              )}
+
+              {/* View Switcher: Chart vs Live Terminal */}
+              <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-surface-highest/50">
+                <button
+                  onClick={() => setViewMode('chart')}
+                  className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer ${
+                    viewMode === 'chart'
+                      ? 'bg-cream text-canvas font-bold shadow-xs'
+                      : 'text-muted-light hover:text-cream'
+                  }`}
+                  type="button"
+                >
+                  CHART VIEW
+                </button>
+                <button
+                  onClick={() => setViewMode('terminal')}
+                  className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer flex items-center gap-1 ${
+                    viewMode === 'terminal'
+                      ? 'bg-cream text-canvas font-bold shadow-xs'
+                      : 'text-muted-light hover:text-cream'
+                  }`}
+                  type="button"
+                >
+                  <Terminal className="w-3 h-3" />
+                  <span>TX MONITOR</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Interactive Chart Canvas OR Live Terminal */}
-          <div className="relative w-full h-72 bg-surface-low border border-surface-highest/40 rounded-lg p-3 flex items-center justify-center overflow-hidden">
+          <div className="relative w-full bg-surface-low border border-surface-highest/40 rounded-xl p-3 flex flex-col gap-3 overflow-hidden shadow-inner">
             {viewMode === 'terminal' ? (
               /* Live EVM Opcode Stream Terminal */
-              <div className="w-full h-full flex flex-col justify-between font-mono text-xs">
+              <div className="w-full h-80 flex flex-col justify-between font-mono text-xs">
                 <div className="flex items-center justify-between pb-1.5 border-b border-surface-highest/40 text-[11px] text-muted-light">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-mint animate-pulse"></span>
@@ -839,135 +905,280 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   </div>
                 )}
               </div>
-            ) : mode === 'casestudy' ? (
-              /* Case Study Data Display */
-              <div className="w-full h-full flex flex-col justify-between">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
-                  {complexity === 'o1' &&
-                    CASE_STUDY_FIXED_GAS.map((pt) => (
-                      <div
-                        key={pt.n}
-                        className="bg-surface p-2 rounded border border-surface-highest/40 flex flex-col"
-                      >
-                        <span className="text-muted-light">N = {pt.n}</span>
-                        <span className="text-cream font-bold">{pt.gas.toLocaleString()} gas</span>
-                        <span className="text-[10px] text-mint">{pt.notes}</span>
-                      </div>
-                    ))}
+            ) : (
+              /* High-Tech Unified Interactive SVG Chart */
+              <div className="w-full flex flex-col gap-3">
+                {/* SVG Visual Canvas */}
+                <div className="relative w-full h-64 sm:h-72">
+                  <svg className="w-full h-full" viewBox="0 0 680 230" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4EBA86" stopOpacity="0.32" />
+                        <stop offset="100%" stopColor="#4EBA86" stopOpacity="0.0" />
+                      </linearGradient>
+                      <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#4EBA86" floodOpacity="0.6" />
+                      </filter>
+                    </defs>
 
-                  {complexity === 'on' &&
-                    CASE_STUDY_LINEAR_GAS.map((pt) => (
-                      <div
-                        key={pt.n}
-                        className="bg-surface p-2 rounded border border-surface-highest/40 flex flex-col"
-                      >
-                        <span className="text-muted-light">N = {pt.n}</span>
-                        <span className="text-mint font-bold">{pt.gas.toLocaleString()} gas</span>
-                        <span className="text-[10px] text-cream-dim">Linear step: ~190 gas</span>
-                      </div>
-                    ))}
+                    {/* Background Precision Grid Lines */}
+                    {[0, 0.25, 0.5, 0.75, 1.0].map((frac) => {
+                      const val = Math.round(chartMaxY * frac);
+                      const yPos = 200 - frac * 175;
+                      const label =
+                        chartMaxY >= 1_000_000
+                          ? `${(val / 1_000_000).toFixed(1)}M`
+                          : `${Math.round(val / 1000)}k`;
+                      return (
+                        <g key={frac}>
+                          <line x1="60" y1={yPos} x2="660" y2={yPos} stroke="#22201C" strokeDasharray="3 3" />
+                          <text
+                            x="52"
+                            y={yPos + 3.5}
+                            fill="#7E7768"
+                            fontFamily="JetBrains Mono"
+                            fontSize="9"
+                            textAnchor="end"
+                          >
+                            {label}
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                  {complexity === 'on2' &&
-                    CASE_STUDY_QUADRATIC_GAS.map((pt) => (
-                      <div
-                        key={pt.n}
-                        className={`p-2 rounded border flex flex-col ${
-                          pt.isAnomalous
-                            ? 'bg-contradiction/15 border-contradiction/40'
-                            : 'bg-surface border-surface-highest/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-light">N = {pt.n}</span>
-                          {pt.isAnomalous && (
-                            <span className="text-[9px] px-1 bg-contradiction text-canvas rounded font-bold">
-                              ANOMALOUS
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          className={`font-bold ${
-                            pt.isAnomalous ? 'text-contradiction-bright' : 'text-cream'
-                          }`}
+                    {/* Vertical X Grid Lines */}
+                    {[0, 50, 100, 150, 200].map((nVal) => {
+                      const xPos = 60 + (nVal / 200) * 600;
+                      return (
+                        <g key={nVal}>
+                          <line x1={xPos} y1="25" x2={xPos} y2="200" stroke="#22201C" strokeDasharray="3 3" />
+                          <text
+                            x={xPos}
+                            y="218"
+                            fill="#7E7768"
+                            fontFamily="JetBrains Mono"
+                            fontSize="9"
+                            textAnchor="middle"
+                          >
+                            {nVal}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    <text x="360" y="228" fill="#5E584D" fontFamily="JetBrains Mono" fontSize="8.5" textAnchor="middle">
+                      INPUT MAGNITUDE (N)
+                    </text>
+
+                    {/* 10M Block Ceiling Line (If within range) */}
+                    {10_000_000 <= chartMaxY && (
+                      <g>
+                        <line
+                          x1="60"
+                          y1={200 - (10_000_000 / chartMaxY) * 175}
+                          x2="660"
+                          y2={200 - (10_000_000 / chartMaxY) * 175}
+                          stroke="#E05656"
+                          strokeDasharray="5 3"
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x="655"
+                          y={200 - (10_000_000 / chartMaxY) * 175 - 5}
+                          fill="#E05656"
+                          fontFamily="JetBrains Mono"
+                          fontSize="8.5"
+                          textAnchor="end"
+                          fontWeight="bold"
                         >
-                          {pt.gas.toLocaleString()} gas
-                        </span>
-                        <span className="text-[10px] text-muted-light truncate">
-                          {pt.notes ?? 'Polynomial surge'}
-                        </span>
-                      </div>
-                    ))}
+                          BLOCK CEILING: 10,000,000 GAS
+                        </text>
+                      </g>
+                    )}
+
+                    {/* Shaded Area Under Curve */}
+                    {curvePoints.length > 1 && (
+                      <path
+                        d={`${curvePoints
+                          .map((p, i) => {
+                            const x = 60 + (p.n / 200) * 600;
+                            const y = 200 - (Math.min(chartMaxY, p.gas) / chartMaxY) * 175;
+                            return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+                          })
+                          .join(' ')} L ${60 + (curvePoints[curvePoints.length - 1].n / 200) * 600} 200 L ${
+                          60 + (curvePoints[0].n / 200) * 600
+                        } 200 Z`}
+                        fill="url(#curveGradient)"
+                      />
+                    )}
+
+                    {/* Main Curve Line */}
+                    {curvePoints.length > 1 && (
+                      <path
+                        d={curvePoints
+                          .map((p, i) => {
+                            const x = 60 + (p.n / 200) * 600;
+                            const y = 200 - (Math.min(chartMaxY, p.gas) / chartMaxY) * 175;
+                            return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+                          })
+                          .join(' ')}
+                        fill="none"
+                        stroke="#4EBA86"
+                        strokeWidth="2.5"
+                        filter="url(#neonGlow)"
+                      />
+                    )}
+
+                    {/* Active Selected N Tracer Line & Marker */}
+                    {(() => {
+                      const activeX = 60 + (Math.min(200, inputN) / 200) * 600;
+                      const activeY = 200 - (Math.min(chartMaxY, metrics.estimatedGas) / chartMaxY) * 175;
+                      return (
+                        <g key="active-marker">
+                          <line
+                            x1={activeX}
+                            y1="200"
+                            x2={activeX}
+                            y2={activeY}
+                            stroke="#4EBA86"
+                            strokeDasharray="2 2"
+                            strokeWidth="1.5"
+                          />
+                          <circle cx={activeX} cy={activeY} r="7" fill="#4EBA86" opacity="0.3" className="animate-ping" />
+                          <circle cx={activeX} cy={activeY} r="4.5" fill="#4EBA86" stroke="#0B0B0A" strokeWidth="2" />
+
+                          {/* Floating Pill Label */}
+                          <g transform={`translate(${Math.max(105, Math.min(575, activeX))}, ${Math.max(25, activeY - 14)})`}>
+                            <rect
+                              x="-65"
+                              y="-11"
+                              width="130"
+                              height="20"
+                              rx="6"
+                              fill="#141311"
+                              stroke="#4EBA86"
+                              strokeWidth="1"
+                              className="shadow-md"
+                            />
+                            <text
+                              textAnchor="middle"
+                              y="3"
+                              fill="#FFFFFF"
+                              fontFamily="JetBrains Mono"
+                              fontSize="8.5"
+                              fontWeight="bold"
+                            >
+                              N = {inputN} • {metrics.estimatedGas.toLocaleString()} GAS
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })()}
+
+                    {/* Case Study Individual Data Nodes (Clickable) */}
+                    {mode === 'casestudy' &&
+                      curvePoints.map((pt) => {
+                        const px = 60 + (pt.n / 200) * 600;
+                        const py = 200 - (Math.min(chartMaxY, pt.gas) / chartMaxY) * 175;
+                        const isCurrent = inputN === pt.n;
+                        return (
+                          <g
+                            key={pt.n}
+                            className="cursor-pointer group select-none"
+                            onClick={() => {
+                              setInputN(pt.n);
+                              soundManager.playStepTick();
+                            }}
+                            onMouseEnter={() => setHoveredPoint(pt)}
+                            onMouseLeave={() => setHoveredPoint(null)}
+                          >
+                            {pt.isAnomalous && (
+                              <circle cx={px} cy={py} r="10" fill="#E05656" opacity="0.3" className="animate-ping" />
+                            )}
+                            <circle
+                              cx={px}
+                              cy={py}
+                              r={isCurrent ? 6 : 4}
+                              fill={pt.isAnomalous ? '#E05656' : isCurrent ? '#F3E9D3' : '#4EBA86'}
+                              stroke="#0B0B0A"
+                              strokeWidth="1.5"
+                              className="transition-transform group-hover:scale-125"
+                            />
+                          </g>
+                        );
+                      })}
+                  </svg>
                 </div>
 
-                {/* Additional case study insight badge */}
-                <div className="p-2.5 bg-surface-lowest rounded border border-surface-highest/30 flex items-center justify-between font-mono text-xs">
-                  <span className="text-cream-dim">
-                    Finite Expensive Benchmark: N = {CASE_STUDY_EXPENSIVE_POINT.n}
-                  </span>
-                  <span className="text-mint font-bold">
-                    {CASE_STUDY_EXPENSIVE_POINT.gas.toLocaleString()} GAS (COMPLETED)
-                  </span>
+                {/* Benchmark Chips Tape: Measured Data Points */}
+                <div className="flex flex-col gap-2 pt-1 border-t border-surface-highest/40 font-mono text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-light text-[10px] uppercase font-semibold">
+                      {mode === 'casestudy' ? 'RECORDED EMPIRICAL BENCHMARKS (CLICK TO SELECT)' : 'MODEL PARAMETER PRESETS'}
+                    </span>
+                    <span className="text-cream-dim text-[10px]">
+                      {complexity === 'o1'
+                        ? 'O(1) CONSTANT OVERHEAD: 1,421 GAS'
+                        : complexity === 'on'
+                        ? 'O(n) LINEAR EXPANSION: ~190 GAS/OP'
+                        : 'O(n²) POLYNOMIAL SURGE: ~194 GAS/n²'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {activeCaseStudyPoints.map((pt) => {
+                      const isSelected = inputN === pt.n;
+                      return (
+                        <button
+                          key={pt.n}
+                          onClick={() => {
+                            setInputN(pt.n);
+                            soundManager.playStepTick();
+                          }}
+                          className={`p-2 rounded-lg border text-left flex flex-col transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-mint/15 border-mint text-mint shadow-xs scale-[1.02]'
+                              : pt.isAnomalous
+                              ? 'bg-contradiction/10 border-contradiction/30 hover:bg-contradiction/20 text-cream'
+                              : 'bg-surface hover:bg-surface-high border-surface-highest/40 text-cream-dim'
+                          }`}
+                          type="button"
+                        >
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-bold">N = {pt.n}</span>
+                            {pt.isAnomalous ? (
+                              <span className="px-1 py-0.2 bg-contradiction text-canvas font-bold text-[8px] rounded">
+                                ERROR
+                              </span>
+                            ) : isSelected ? (
+                              <CheckCircle2 className="w-3 h-3 text-mint" />
+                            ) : null}
+                          </div>
+                          <span className={`text-[12px] font-bold ${isSelected ? 'text-mint' : pt.isAnomalous ? 'text-contradiction-bright' : 'text-cream'}`}>
+                            {pt.gas.toLocaleString()} gas
+                          </span>
+                          <span className="text-[9px] text-muted-light truncate mt-0.5">
+                            {pt.notes ?? (complexity === 'on' ? 'Linear step' : 'Polynomial surge')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Finite Expensive Stress Benchmark Milestone */}
+                  <div className="pt-2 border-t border-surface-highest/30 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] font-mono text-muted-light gap-1">
+                    <span className="text-cream-dim">EMPIRICAL BOUNDARY: N = {CASE_STUDY_EXPENSIVE_POINT.n}</span>
+                    <span className="text-mint font-bold">{CASE_STUDY_EXPENSIVE_POINT.gas.toLocaleString()} GAS (TERMINATED NATURALLY)</span>
+                  </div>
                 </div>
               </div>
-            ) : (
-              /* Theoretical SVG Curve Canvas */
-              <svg className="w-full h-full" viewBox="0 0 600 200">
-                {/* Horizontal reference grid lines */}
-                <line x1="50" y1="20" x2="580" y2="20" stroke="#25231F" strokeDasharray="3 3" />
-                <line x1="50" y1="65" x2="580" y2="65" stroke="#25231F" strokeDasharray="3 3" />
-                <line x1="50" y1="110" x2="580" y2="110" stroke="#25231F" strokeDasharray="3 3" />
-                <line x1="50" y1="155" x2="580" y2="155" stroke="#25231F" strokeDasharray="3 3" />
-                <line x1="50" y1="180" x2="580" y2="180" stroke="#353534" strokeWidth="1.5" />
-
-                {/* Y-Axis Labels */}
-                <text x="40" y="24" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">12M</text>
-                <text x="40" y="69" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">10M</text>
-                <text x="40" y="114" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">6M</text>
-                <text x="40" y="159" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">2M</text>
-
-                {/* 10M Gas Ceiling Line */}
-                <line x1="50" y1="65" x2="580" y2="65" stroke="#E05656" strokeDasharray="6 4" strokeWidth="1.5" />
-                <text x="500" y="58" fill="#E05656" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">
-                  BLOCK CEILING: 10,000,000
-                </text>
-
-                {/* Active Dynamic Curve */}
-                {complexity === 'o1' && (
-                  <path d="M 50 175 L 580 175" fill="none" stroke="#4EBA86" strokeWidth="3" />
-                )}
-                {complexity === 'on' && (
-                  <path d="M 50 180 L 580 120" fill="none" stroke="#4EBA86" strokeWidth="3" />
-                )}
-                {complexity === 'on2' && (
-                  <>
-                    <path
-                      d="M 50 180 C 180 175, 320 140, 420 65 S 500 15, 540 5"
-                      fill="none"
-                      stroke="#4EBA86"
-                      strokeWidth="3.5"
-                    />
-                    <circle cx="420" cy="65" r="5" fill="#E05656" className="animate-pulse" />
-                    <text x="420" y="85" fill="#E05656" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle" fontWeight="bold">
-                      CEILING BREACH (N ~ 72)
-                    </text>
-                  </>
-                )}
-
-                {/* X-Axis Labels */}
-                <text x="50" y="195" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">0</text>
-                <text x="180" y="195" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">50</text>
-                <text x="310" y="195" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">100</text>
-                <text x="440" y="195" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">150</text>
-                <text x="570" y="195" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="middle">200</text>
-              </svg>
             )}
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-muted-light font-mono text-xs gap-1">
             <span>
-              Observation: Computational work scales with algorithm structure, bounded by block limit.
+              Observation: {complexity === 'on2' ? 'Polynomial operations quickly breach block ceiling.' : 'Sub-linear algorithms remain safely within gas limits.'}
             </span>
-            <span className="text-mint font-semibold">REVERT ON EXHAUSTION</span>
+            <span className="text-mint font-semibold">TURING BOUNDARY: METERED GAS</span>
           </div>
         </div>
       </div>

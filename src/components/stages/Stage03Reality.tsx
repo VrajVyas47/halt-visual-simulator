@@ -499,20 +499,20 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
             </div>
           </div>
 
-          {/* Segmented LED Rail */}
-          <div className="grid grid-cols-15 sm:grid-cols-30 gap-1 h-6 w-full bg-surface-lowest p-1 rounded border border-surface-highest/40">
+          {/* Segmented LED Rail (Single horizontal row) */}
+          <div className="flex items-center gap-1 h-6 w-full bg-surface-lowest p-1 rounded border border-surface-highest/40 overflow-hidden">
             {Array.from({ length: totalSegments }).map((_, idx) => {
               const isActive = idx < activeSegments;
               const isExhausted = currentGas === 0;
               return (
                 <div
                   key={idx}
-                  className={`rounded-xs h-full transition-all duration-100 ${
+                  className={`flex-1 rounded-[2px] h-full transition-all duration-150 ${
                     isExhausted
-                      ? 'bg-contradiction/30 border border-contradiction/50'
+                      ? 'bg-contradiction/30 border border-contradiction/50 shadow-[0_0_4px_rgba(224,86,86,0.3)]'
                       : isActive
                       ? 'bg-mint shadow-[0_0_6px_rgba(112,219,164,0.3)]'
-                      : 'bg-surface-high'
+                      : 'bg-surface-high/60'
                   }`}
                 />
               );

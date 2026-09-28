@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Fuel,
   TrendingUp,
@@ -6,6 +6,13 @@ import {
   CheckCircle2,
   XCircle,
   Play,
+  Pause,
+  StepForward,
+  Terminal,
+  Zap,
+  Cpu,
+  Layers,
+  Check,
 } from 'lucide-react';
 import {
   CASE_STUDY_LINEAR_GAS,
@@ -21,46 +28,332 @@ interface Stage03RealityProps {
   onRestartSimulation: () => void;
 }
 
+interface OpcodeLogEntry {
+  id: number;
+  op: string;
+  cost: number;
+  gasRemaining: number;
+}
+
 export const Stage03Reality: React.FC<Stage03RealityProps> = ({
   onRestartSimulation,
 }) => {
+  // Mode & Complexity State
   const [mode, setMode] = useState<'theoretical' | 'casestudy'>('casestudy');
   const [complexity, setComplexity] = useState<ComplexityClass>('on2');
   const [inputN, setInputN] = useState<number>(100);
+  const [viewMode, setViewMode] = useState<'chart' | 'terminal'>('chart');
 
-  // Dynamic Fuel Cell / Gas Meter state
-  const [gasInitialCap] = useState<number>(100_000);
-  const [currentGas, setCurrentGas] = useState<number>(32_400);
+  // Master Fuel Cell / Gas Budget state
+  const [gasInitialCap, setGasInitialCap] = useState<number>(100_000);
+  const [currentGas, setCurrentGas] = useState<number>(100_000);
   const [isBurningGas, setIsBurningGas] = useState<boolean>(false);
-  const [simulationScenario, setSimulationScenario] = useState<'A' | 'B' | null>(null);
+  const [simulationScenario, setSimulationScenario] = useState<string | null>(null);
 
-  const metrics = calculateComplexityMetrics(complexity, inputN);
+  // Complexity Lab EVM Simulation State
+  const [labStatus, setLabStatus] = useState<'idle' | 'running' | 'paused' | 'success' | 'revert'>('idle');
+  const [labProgress, setLabProgress] = useState<number>(0); // 0 to 100%
+  const [labOpsDone, setLabOpsDone] = useState<number>(0);
+  const [labGasUsed, setLabGasUsed] = useState<number>(0);
+  const [labLogs, setLabLogs] = useState<OpcodeLogEntry[]>([]);
+  const [labSpeed, setLabSpeed] = useState<number>(1); // 1x, 5x, 20x
+  const labTimerRef = useRef<number | null>(null);
+  const labLogsEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Trigger simulated gas consumption animation
-  const runGasBurnSimulation = (scenario: 'A' | 'B') => {
-    setSimulationScenario(scenario);
-    setIsBurningGas(true);
-    setCurrentGas(gasInitialCap);
+  // Case A vs Case B Duel Simulator State
+  const [duelGasLimit, setDuelGasLimit] = useState<number>(100_000);
+  const [caseAStatus, setCaseAStatus] = useState<'idle' | 'running' | 'completed' | 'reverted'>('idle');
+  const [caseBStatus, setCaseBStatus] = useState<'idle' | 'running' | 'reverted'>('idle');
+  const [caseASteps, setCaseASteps] = useState<number>(0);
+  const [caseBSteps, setCaseBSteps] = useState<number>(0);
+  const [caseAGasSpent, setCaseAGasSpent] = useState<number>(0);
+  const [caseBGasSpent, setCaseBGasSpent] = useState<number>(0);
+  const duelTimerRef = useRef<number | null>(null);
 
-    let current = gasInitialCap;
-    // Both scenarios consume gas until 0 (Out Of Gas threshold)
-    const target = 0;
-    const interval = window.setInterval(() => {
-      current -= 5000;
-      soundManager.playStepTick();
-      if (current <= target) {
-        current = target;
-        clearInterval(interval);
-        setIsBurningGas(false);
-        soundManager.playWarningTone();
-      }
-      setCurrentGas(current);
-    }, 40);
-  };
+  const metrics = calculateComplexityMetrics(complexity, inputN, gasInitialCap);
 
+  // Auto-scroll terminal logs
+  useEffect(() => {
+    if (viewMode === 'terminal') {
+      labLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [labLogs.length, viewMode]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (labTimerRef.current) clearInterval(labTimerRef.current);
+      if (duelTimerRef.current) clearInterval(duelTimerRef.current);
+    };
+  }, []);
+
+  // Reset Lab Simulation when inputs change
+  useEffect(() => {
+    resetLabSimulation();
+  }, [complexity, inputN, gasInitialCap]);
+
+  // Reset Fuel Cell
   const resetFuelCell = () => {
     setIsBurningGas(false);
-    setCurrentGas(32_400);
+    setCurrentGas(gasInitialCap);
+    setSimulationScenario(null);
+  };
+
+  // Update Gas Budget
+  const handleSetGasBudget = (newCap: number) => {
+    setGasInitialCap(newCap);
+    setCurrentGas(newCap);
+    setIsBurningGas(false);
+    setSimulationScenario(null);
+  };
+
+  // ==========================================
+  // 1. COMPLEXITY LAB SIMULATOR (EVM RUNNER)
+  // ==========================================
+  const resetLabSimulation = () => {
+    if (labTimerRef.current) clearInterval(labTimerRef.current);
+    setLabStatus('idle');
+    setLabProgress(0);
+    setLabOpsDone(0);
+    setLabGasUsed(0);
+    setLabLogs([]);
+    setCurrentGas(gasInitialCap);
+    setIsBurningGas(false);
+  };
+
+  const sampleOpcodes = [
+    { op: 'PUSH1 0x01', cost: 3 },
+    { op: 'ADD', cost: 3 },
+    { op: 'DUP1', cost: 3 },
+    { op: 'SWAP1', cost: 3 },
+    { op: 'SLOAD', cost: 2100 },
+    { op: 'MSTORE', cost: 6 },
+    { op: 'JUMPI', cost: 10 },
+  ];
+
+  const runLabSimulation = () => {
+    if (labStatus === 'running') {
+      // Pause
+      if (labTimerRef.current) clearInterval(labTimerRef.current);
+      setLabStatus('paused');
+      setIsBurningGas(false);
+      return;
+    }
+
+    setViewMode('terminal');
+    setLabStatus('running');
+    setIsBurningGas(true);
+    setSimulationScenario(`EVM ${complexity.toUpperCase()} (N=${inputN})`);
+
+    const totalTargetOps = metrics.operations;
+    const baseGas = 21000;
+    const gasPerOp = complexity === 'o1' ? 1421 : complexity === 'on' ? 190 : 194;
+    const stepIncrement = Math.max(1, Math.floor(totalTargetOps / (labSpeed === 20 ? 5 : labSpeed === 5 ? 25 : 80)));
+    const intervalMs = labSpeed === 20 ? 20 : labSpeed === 5 ? 50 : 80;
+
+    let currentOps = labOpsDone;
+    let currentGasBurned = labGasUsed === 0 ? baseGas : labGasUsed;
+
+    if (currentOps === 0) {
+      setLabLogs([
+        {
+          id: 0,
+          op: 'TX INITIATE [BASE_FEE]',
+          cost: 21000,
+          gasRemaining: Math.max(0, gasInitialCap - 21000),
+        },
+      ]);
+      soundManager.playStepTick();
+    }
+
+    labTimerRef.current = window.setInterval(() => {
+      currentOps += stepIncrement;
+      if (currentOps > totalTargetOps) currentOps = totalTargetOps;
+
+      currentGasBurned = baseGas + currentOps * gasPerOp;
+      const gasLeft = Math.max(0, gasInitialCap - currentGasBurned);
+
+      setLabOpsDone(currentOps);
+      setLabGasUsed(currentGasBurned);
+      setLabProgress(Math.min(100, Math.round((currentOps / totalTargetOps) * 100)));
+      setCurrentGas(gasLeft);
+
+      // Append random realistic opcode log
+      const randomOp = sampleOpcodes[Math.floor(Math.random() * sampleOpcodes.length)];
+      setLabLogs((prev) => [
+        ...prev.slice(-30),
+        {
+          id: Date.now() + Math.random(),
+          op: `${randomOp.op} [ITER #${currentOps}]`,
+          cost: randomOp.cost,
+          gasRemaining: gasLeft,
+        },
+      ]);
+      soundManager.playStepTick();
+
+      // Check Out Of Gas
+      if (currentGasBurned >= gasInitialCap && currentOps < totalTargetOps) {
+        if (labTimerRef.current) clearInterval(labTimerRef.current);
+        setLabStatus('revert');
+        setIsBurningGas(false);
+        setCurrentGas(0);
+        soundManager.playWarningTone();
+        return;
+      }
+
+      // Check Normal Completion
+      if (currentOps >= totalTargetOps) {
+        if (labTimerRef.current) clearInterval(labTimerRef.current);
+        if (currentGasBurned > gasInitialCap) {
+          setLabStatus('revert');
+          setCurrentGas(0);
+          soundManager.playWarningTone();
+        } else {
+          setLabStatus('success');
+          soundManager.playHaltChime();
+        }
+        setIsBurningGas(false);
+      }
+    }, intervalMs);
+  };
+
+  const stepLabSimulation = () => {
+    setViewMode('terminal');
+    setLabStatus('paused');
+    const totalTargetOps = metrics.operations;
+    const baseGas = 21000;
+    const gasPerOp = complexity === 'o1' ? 1421 : complexity === 'on' ? 190 : 194;
+    const nextOps = Math.min(totalTargetOps, labOpsDone + Math.max(1, Math.floor(totalTargetOps / 15)));
+    const gasBurned = baseGas + nextOps * gasPerOp;
+    const gasLeft = Math.max(0, gasInitialCap - gasBurned);
+
+    setLabOpsDone(nextOps);
+    setLabGasUsed(gasBurned);
+    setLabProgress(Math.min(100, Math.round((nextOps / totalTargetOps) * 100)));
+    setCurrentGas(gasLeft);
+
+    const randomOp = sampleOpcodes[Math.floor(Math.random() * sampleOpcodes.length)];
+    setLabLogs((prev) => [
+      ...prev.slice(-30),
+      {
+        id: Date.now(),
+        op: `${randomOp.op} [STEP #${nextOps}]`,
+        cost: randomOp.cost,
+        gasRemaining: gasLeft,
+      },
+    ]);
+    soundManager.playStepTick();
+
+    if (gasBurned >= gasInitialCap && nextOps < totalTargetOps) {
+      setLabStatus('revert');
+      setCurrentGas(0);
+      soundManager.playWarningTone();
+    } else if (nextOps >= totalTargetOps) {
+      if (gasBurned > gasInitialCap) {
+        setLabStatus('revert');
+        setCurrentGas(0);
+        soundManager.playWarningTone();
+      } else {
+        setLabStatus('success');
+        soundManager.playHaltChime();
+      }
+    }
+  };
+
+  // ==========================================
+  // 2. CASE A vs CASE B DUEL SIMULATOR
+  // ==========================================
+  const runCaseSimulation = (scenario: 'A' | 'B' | 'BOTH') => {
+    if (duelTimerRef.current) clearInterval(duelTimerRef.current);
+
+    setIsBurningGas(true);
+    setSimulationScenario(`CASE ${scenario}`);
+    setCurrentGas(duelGasLimit);
+
+    if (scenario === 'A' || scenario === 'BOTH') {
+      setCaseAStatus('running');
+      setCaseASteps(0);
+      setCaseAGasSpent(0);
+    }
+    if (scenario === 'B' || scenario === 'BOTH') {
+      setCaseBStatus('running');
+      setCaseBSteps(0);
+      setCaseBGasSpent(0);
+    }
+
+    const caseATargetSteps = 500_000;
+    const gasPerStep = 3; // 3 gas per loop step
+    const maxStepsAllowedByGas = Math.floor(duelGasLimit / gasPerStep);
+
+    let aSteps = 0;
+    let bSteps = 0;
+    let aGas = 0;
+    let bGas = 0;
+
+    const stepInc = Math.max(1000, Math.floor(maxStepsAllowedByGas / 35));
+
+    duelTimerRef.current = window.setInterval(() => {
+      let bothDone = true;
+
+      // Update Case A
+      if (scenario === 'A' || scenario === 'BOTH') {
+        if (aGas < duelGasLimit && aSteps < caseATargetSteps) {
+          bothDone = false;
+          aSteps = Math.min(caseATargetSteps, aSteps + stepInc);
+          aGas = aSteps * gasPerStep;
+          if (aGas > duelGasLimit) aGas = duelGasLimit;
+          setCaseASteps(aSteps);
+          setCaseAGasSpent(aGas);
+        } else {
+          if (aSteps >= caseATargetSteps && aGas <= duelGasLimit) {
+            setCaseAStatus('completed');
+          } else {
+            setCaseAStatus('reverted');
+          }
+        }
+      }
+
+      // Update Case B (infinite, always exhausts gas)
+      if (scenario === 'B' || scenario === 'BOTH') {
+        if (bGas < duelGasLimit) {
+          bothDone = false;
+          bSteps += stepInc;
+          bGas = bSteps * gasPerStep;
+          if (bGas > duelGasLimit) bGas = duelGasLimit;
+          setCaseBSteps(bSteps);
+          setCaseBGasSpent(bGas);
+        } else {
+          setCaseBStatus('reverted');
+        }
+      }
+
+      const highestGasUsed = Math.max(aGas, bGas);
+      setCurrentGas(Math.max(0, duelGasLimit - highestGasUsed));
+      soundManager.playStepTick();
+
+      if (bothDone) {
+        if (duelTimerRef.current) clearInterval(duelTimerRef.current);
+        setIsBurningGas(false);
+
+        if ((scenario === 'A' || scenario === 'BOTH') && aSteps >= caseATargetSteps && duelGasLimit >= 500_000 * gasPerStep) {
+          soundManager.playHaltChime();
+        } else {
+          soundManager.playWarningTone();
+        }
+      }
+    }, 45);
+  };
+
+  const resetDuel = () => {
+    if (duelTimerRef.current) clearInterval(duelTimerRef.current);
+    setCaseAStatus('idle');
+    setCaseBStatus('idle');
+    setCaseASteps(0);
+    setCaseBSteps(0);
+    setCaseAGasSpent(0);
+    setCaseBGasSpent(0);
+    setCurrentGas(gasInitialCap);
+    setIsBurningGas(false);
     setSimulationScenario(null);
   };
 
@@ -125,7 +418,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
       {/* Master Physical Fuel Cell / Gas Meter Panel */}
       <div className="bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 lg:p-6 flex flex-col gap-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <Fuel className="w-5 h-5 text-mint" />
             <div className="flex flex-col">
@@ -138,18 +431,35 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Gas Limit Presets */}
+            <div className="flex items-center gap-1 bg-surface px-2.5 py-1 rounded-full border border-surface-highest/40 font-mono text-xs">
+              <span className="text-muted-light text-[10px] mr-1 uppercase">BUDGET:</span>
+              {[100_000, 500_000, 1_000_000, 10_000_000].map((cap) => (
+                <button
+                  key={cap}
+                  onClick={() => handleSetGasBudget(cap)}
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
+                    gasInitialCap === cap
+                      ? 'bg-cream text-canvas font-bold shadow-xs'
+                      : 'text-muted-light hover:text-cream'
+                  }`}
+                  type="button"
+                >
+                  {cap >= 1_000_000 ? `${cap / 1_000_000}M` : `${cap / 1000}K`}
+                </button>
+              ))}
+            </div>
+
             {simulationScenario && (
-              <span className="px-2.5 py-1 rounded-full bg-contradiction/15 border border-contradiction/40 text-contradiction-bright font-mono text-xs font-semibold">
-                BURNING: SCENARIO {simulationScenario}
+              <span className="px-2.5 py-1 rounded-full bg-contradiction/15 border border-contradiction/40 text-contradiction-bright font-mono text-xs font-semibold animate-pulse">
+                BURNING: {simulationScenario}
               </span>
             )}
-            <span className="px-3 py-1 rounded-full bg-mint/10 border border-mint/30 text-mint font-mono text-xs font-semibold">
-              BURN RATE: 21,000 BASE + 3 GAS/OPCODE
-            </span>
+
             <button
               onClick={resetFuelCell}
-              className="p-1.5 rounded-full bg-surface border border-surface-highest/50 hover:bg-surface-high text-muted-light hover:text-cream transition-colors"
+              className="p-1.5 rounded-full bg-surface border border-surface-highest/50 hover:bg-surface-high text-muted-light hover:text-cream transition-colors cursor-pointer"
               title="Reset fuel cell to default"
               type="button"
             >
@@ -173,7 +483,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
               <span
                 className={`w-2 h-2 rounded-full ${
                   currentGas === 0
-                    ? 'bg-contradiction'
+                    ? 'bg-contradiction animate-pulse'
                     : isBurningGas
                     ? 'bg-mint animate-ping'
                     : 'bg-mint'
@@ -184,7 +494,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   currentGas === 0 ? 'text-contradiction' : 'text-mint'
                 }`}
               >
-                {currentGas === 0 ? 'OUT OF GAS' : `${gasPercentage.toFixed(1)}%`}
+                {currentGas === 0 ? 'OUT OF GAS (REVERT)' : `${gasPercentage.toFixed(1)}%`}
               </span>
             </div>
           </div>
@@ -211,16 +521,16 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
           <div className="flex justify-between items-center font-mono text-[10px] text-muted-light pt-1">
             <span className="text-contradiction-bright">0 (EXHAUSTION: REVERT STATE)</span>
-            <span className="text-cream-dim">SAFE BUFFER: &gt; 21,000 GAS</span>
-            <span>{gasInitialCap.toLocaleString()} (GAS LIMIT BUDGET)</span>
+            <span className="text-cream-dim hidden sm:inline">BURN RATE: 21,000 BASE + OPCODE RATE</span>
+            <span>{gasInitialCap.toLocaleString()} (ACTIVE GAS LIMIT)</span>
           </div>
         </div>
       </div>
 
       {/* Complexity & Case Study Laboratory */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Column: Controls & Big-O Selector */}
-        <div className="lg:col-span-4 bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-5 shadow-sm">
+        {/* Left Column: Controls, Big-O Selector & Interactive Simulation Deck */}
+        <div className="lg:col-span-5 bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-5 shadow-sm">
           <div className="flex flex-col gap-4">
             {/* Mode Switch: Theoretical vs Case-Study */}
             <div className="flex flex-col gap-1.5">
@@ -230,7 +540,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
               <div className="grid grid-cols-2 gap-1 bg-surface-low p-1 rounded-lg border border-surface-highest/50">
                 <button
                   onClick={() => setMode('casestudy')}
-                  className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all ${
+                  className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer ${
                     mode === 'casestudy'
                       ? 'bg-cream text-canvas shadow-sm'
                       : 'text-cream-dim hover:text-white'
@@ -241,7 +551,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 </button>
                 <button
                   onClick={() => setMode('theoretical')}
-                  className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all ${
+                  className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer ${
                     mode === 'theoretical'
                       ? 'bg-cream text-canvas shadow-sm'
                       : 'text-cream-dim hover:text-white'
@@ -263,7 +573,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   <button
                     key={cls}
                     onClick={() => setComplexity(cls)}
-                    className={`py-1 rounded-full font-mono text-xs transition-all ${
+                    className={`py-1 rounded-full font-mono text-xs transition-all cursor-pointer ${
                       complexity === cls
                         ? 'bg-cream text-canvas font-bold shadow-sm'
                         : 'text-cream-dim hover:text-white'
@@ -287,7 +597,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   <button
                     key={nVal}
                     onClick={() => setInputN(nVal)}
-                    className={`py-1 rounded-full transition-all ${
+                    className={`py-1 rounded-full transition-all cursor-pointer ${
                       inputN === nVal
                         ? 'bg-cream text-canvas font-bold shadow-sm'
                         : 'text-cream-dim hover:text-white'
@@ -309,7 +619,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-light">Gas Consumed:</span>
+                <span className="text-muted-light">Estimated Gas:</span>
                 <span
                   className={
                     metrics.exceedsCeiling
@@ -321,7 +631,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center pt-1 border-t border-surface-highest/30">
-                <span className="text-muted-light">Block Ceiling Status:</span>
+                <span className="text-muted-light">Limit Assessment:</span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                     metrics.exceedsCeiling
@@ -333,40 +643,203 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Live Interactive EVM Transaction Stepper & Runner */}
+            <div className="bg-surface-low border border-mint/30 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-mono text-xs text-cream font-bold">
+                  <Zap className="w-3.5 h-3.5 text-mint" />
+                  <span>INTERACTIVE EVM SIMULATION</span>
+                </div>
+                <div className="flex items-center gap-1 bg-surface px-2 py-0.5 rounded font-mono text-[10px] text-muted-light">
+                  <span>SPD:</span>
+                  {[1, 5, 20].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setLabSpeed(s)}
+                      className={`px-1 rounded cursor-pointer ${
+                        labSpeed === s ? 'text-mint font-bold bg-mint/10' : 'hover:text-cream'
+                      }`}
+                      type="button"
+                    >
+                      {s === 20 ? 'MAX' : `${s}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={runLabSimulation}
+                  className={`py-2 px-3 rounded-lg font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer ${
+                    labStatus === 'running'
+                      ? 'bg-amber-400 text-canvas hover:bg-amber-300'
+                      : 'bg-mint text-canvas hover:bg-mint-light'
+                  }`}
+                  type="button"
+                >
+                  {labStatus === 'running' ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>PAUSE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-canvas" />
+                      <span>{labStatus === 'paused' ? 'RESUME TX' : 'RUN TX'}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={stepLabSimulation}
+                  disabled={labStatus === 'running' || labStatus === 'success' || labStatus === 'revert'}
+                  className="py-2 px-2 bg-surface hover:bg-surface-high disabled:opacity-40 text-cream rounded-lg font-mono text-xs transition-all flex items-center justify-center gap-1 border border-surface-highest/50 cursor-pointer"
+                  type="button"
+                >
+                  <StepForward className="w-3.5 h-3.5" />
+                  <span>STEP</span>
+                </button>
+
+                <button
+                  onClick={resetLabSimulation}
+                  className="py-2 px-2 bg-surface hover:bg-surface-high text-muted-light hover:text-contradiction rounded-lg font-mono text-xs transition-all flex items-center justify-center gap-1 border border-surface-highest/50 cursor-pointer"
+                  type="button"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>RESET</span>
+                </button>
+              </div>
+
+              {/* Live Simulation Progress Bar */}
+              <div className="flex flex-col gap-1 pt-1 font-mono text-[10px]">
+                <div className="flex justify-between items-center text-muted-light">
+                  <span>PROGRESS: {labProgress}% ({labOpsDone.toLocaleString()} / {metrics.operations.toLocaleString()} OPS)</span>
+                  <span className={labStatus === 'revert' ? 'text-contradiction-bright font-bold' : labStatus === 'success' ? 'text-mint font-bold' : 'text-cream'}>
+                    {labStatus === 'revert' ? 'REVERTED' : labStatus === 'success' ? 'COMMITTED' : `${labGasUsed.toLocaleString()} GAS`}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-surface-lowest rounded-full overflow-hidden border border-surface-highest/30">
+                  <div
+                    className={`h-full transition-all duration-100 ${
+                      labStatus === 'revert'
+                        ? 'bg-contradiction'
+                        : labStatus === 'success'
+                        ? 'bg-cream'
+                        : 'bg-mint'
+                    }`}
+                    style={{ width: `${labProgress}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1 text-center font-mono text-[11px] text-muted-light">
             <span>Deterministic Yellow Paper execution model</span>
-            <span className="text-cream-dim">Big-O describes growth; Gas measures real cost.</span>
+            <span className="text-cream-dim">Big-O describes growth; Gas measures real physical cost.</span>
           </div>
         </div>
 
-        {/* Right Column: Comparative Graph Bay (Theoretical vs Case Study) */}
-        <div className="lg:col-span-8 bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
+        {/* Right Column: Comparative Graph Bay & Live Terminal Stream */}
+        <div className="lg:col-span-7 bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-mint" />
               <span className="font-display text-base text-cream font-semibold">
-                {mode === 'casestudy'
+                {viewMode === 'terminal'
+                  ? 'LIVE EVM OPCODES & TX TRACE'
+                  : mode === 'casestudy'
                   ? 'CASE-STUDY MEASURED GAS EXPENDITURE'
                   : 'THEORETICAL OPERATION GROWTH VS GAS CEILING'}
               </span>
             </div>
-            <div className="flex items-center gap-3 font-mono text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-mint"></span>
-                <span className="text-cream-dim">{complexity.toUpperCase()} Curve</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-contradiction border-dashed"></span>
-                <span className="text-contradiction-bright">10M Ceiling</span>
-              </div>
+
+            {/* View Switcher: Chart vs Live Terminal */}
+            <div className="flex items-center gap-1 bg-surface p-1 rounded-lg border border-surface-highest/50">
+              <button
+                onClick={() => setViewMode('chart')}
+                className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer ${
+                  viewMode === 'chart'
+                    ? 'bg-cream text-canvas font-bold shadow-xs'
+                    : 'text-muted-light hover:text-cream'
+                }`}
+                type="button"
+              >
+                CHART VIEW
+              </button>
+              <button
+                onClick={() => setViewMode('terminal')}
+                className={`px-2.5 py-1 rounded font-mono text-xs transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === 'terminal'
+                    ? 'bg-cream text-canvas font-bold shadow-xs'
+                    : 'text-muted-light hover:text-cream'
+                }`}
+                type="button"
+              >
+                <Terminal className="w-3 h-3" />
+                <span>TX MONITOR</span>
+              </button>
             </div>
           </div>
 
-          {/* Interactive Chart Canvas */}
-          <div className="relative w-full h-64 bg-surface-low border border-surface-highest/40 rounded-lg p-3 flex items-center justify-center overflow-hidden">
-            {mode === 'casestudy' ? (
+          {/* Interactive Chart Canvas OR Live Terminal */}
+          <div className="relative w-full h-72 bg-surface-low border border-surface-highest/40 rounded-lg p-3 flex items-center justify-center overflow-hidden">
+            {viewMode === 'terminal' ? (
+              /* Live EVM Opcode Stream Terminal */
+              <div className="w-full h-full flex flex-col justify-between font-mono text-xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-surface-highest/40 text-[11px] text-muted-light">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-mint animate-pulse"></span>
+                    <span>TX 0x7f2a...c014 (CALLDATA: {complexity.toUpperCase()})</span>
+                  </div>
+                  <span>GAS LIMIT: {gasInitialCap.toLocaleString()}</span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-1 pr-1 font-mono text-xs">
+                  {labLogs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-light gap-2">
+                      <Cpu className="w-8 h-8 text-muted-dark" />
+                      <span>CLICK [RUN TX] OR [STEP] TO INITIATE EVM TRANSACTION SIMULATION</span>
+                    </div>
+                  ) : (
+                    labLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex items-center justify-between px-2 py-1 rounded bg-surface/70 hover:bg-surface text-[11px] border border-surface-highest/30 font-mono"
+                      >
+                        <span className="text-mint font-semibold">{log.op}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-cream-dim">-{log.cost} gas</span>
+                          <span className="text-muted-light">Rem: {log.gasRemaining.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={labLogsEndRef} />
+                </div>
+
+                {/* Final EVM Receipt Banner */}
+                {labStatus === 'success' && (
+                  <div className="p-2.5 rounded bg-mint/15 border border-mint/40 text-mint flex items-center justify-between font-mono text-xs">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>TX RECEIPT: STATUS 1 (SUCCESS)</span>
+                    </div>
+                    <span>TOTAL GAS: {labGasUsed.toLocaleString()} | REFUNDED: {(gasInitialCap - labGasUsed).toLocaleString()}</span>
+                  </div>
+                )}
+                {labStatus === 'revert' && (
+                  <div className="p-2.5 rounded bg-contradiction/20 border border-contradiction/50 text-contradiction-bright flex items-center justify-between font-mono text-xs">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <XCircle className="w-4 h-4" />
+                      <span>TX RECEIPT: STATUS 0 (REVERTED: OUT_OF_GAS)</span>
+                    </div>
+                    <span>STATE REVERTED | 0 GAS REFUNDED</span>
+                  </div>
+                )}
+              </div>
+            ) : mode === 'casestudy' ? (
               /* Case Study Data Display */
               <div className="w-full h-full flex flex-col justify-between">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
@@ -447,18 +920,10 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 <line x1="50" y1="180" x2="580" y2="180" stroke="#353534" strokeWidth="1.5" />
 
                 {/* Y-Axis Labels */}
-                <text x="40" y="24" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">
-                  12M
-                </text>
-                <text x="40" y="69" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">
-                  10M
-                </text>
-                <text x="40" y="114" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">
-                  6M
-                </text>
-                <text x="40" y="159" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">
-                  2M
-                </text>
+                <text x="40" y="24" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">12M</text>
+                <text x="40" y="69" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">10M</text>
+                <text x="40" y="114" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">6M</text>
+                <text x="40" y="159" fill="#7E7768" fontFamily="JetBrains Mono" fontSize="9" textAnchor="end">2M</text>
 
                 {/* 10M Gas Ceiling Line */}
                 <line x1="50" y1="65" x2="580" y2="65" stroke="#E05656" strokeDasharray="6 4" strokeWidth="1.5" />
@@ -507,133 +972,278 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
         </div>
       </div>
 
-      {/* The Central Academic Demonstration: Case A vs Case B */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Case A: Finite but Expensive Program */}
-        <div className="bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="px-2.5 py-0.5 rounded bg-surface font-mono text-[10px] text-cream border border-surface-highest/40">
-                SCENARIO 01
-              </span>
-              <span className="font-mono text-xs text-mint font-semibold">
-                TERMINATES NATURALLY (IN THEORY)
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <h3 className="font-display text-base text-cream font-bold">
-                CASE A: FINITE BUT EXPENSIVE PROGRAM
-              </h3>
-              <p className="font-sans text-xs text-cream-dim leading-relaxed">
-                A valid deterministic algorithm (e.g., sorting matrix). It is mathematically proven to terminate at step 500,000.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 bg-surface-low border border-surface-highest/30 p-2.5 rounded font-mono text-xs">
-              <div className="flex flex-col">
-                <span className="text-muted-light text-[10px]">Theoretical Nature</span>
-                <span className="text-mint font-bold">Natural Exit @ 500k ops</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-light text-[10px]">Allocated Gas</span>
-                <span className="text-cream font-bold">100,000 GAS max</span>
-              </div>
-            </div>
+      {/* The Central Academic Demonstration: Case A vs Case B Duel Simulator */}
+      <div className="bg-surface-lowest border border-surface-highest/60 rounded-xl p-5 lg:p-6 flex flex-col gap-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-surface-highest/40 pb-4">
+          <div className="flex flex-col">
+            <span className="font-mono text-xs text-mint font-bold uppercase tracking-wider">
+              CENTRAL EXPERIMENT // SIDE-BY-SIDE DUEL
+            </span>
+            <h2 className="font-display text-lg text-cream font-bold">
+              THE HALTING ILLUSION: FINITE EXPENSIVE vs INFINITE MALICIOUS
+            </h2>
           </div>
 
-          {/* Outcome Action */}
-          <div className="p-3 rounded-lg bg-surface border border-surface-highest/40 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-muted-light uppercase font-semibold">
-                EXECUTION SIMULATION
-              </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Duel Gas Budget Toggle */}
+            <div className="flex items-center gap-1.5 bg-surface px-3 py-1 rounded-full border border-surface-highest/40 font-mono text-xs">
+              <span className="text-muted-light font-semibold">TEST GAS LIMIT:</span>
               <button
-                onClick={() => runGasBurnSimulation('A')}
-                className="px-3 py-1 rounded-full bg-mint text-canvas font-mono text-xs font-bold hover:bg-mint-light transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                onClick={() => setDuelGasLimit(100_000)}
+                className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                  duelGasLimit === 100_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-white'
+                }`}
                 type="button"
               >
-                <Play className="w-3 h-3 fill-canvas" />
-                <span>SIMULATE CASE A</span>
+                100,000 GAS (STANDARD)
+              </button>
+              <button
+                onClick={() => setDuelGasLimit(600_000)}
+                className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                  duelGasLimit === 600_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-white'
+                }`}
+                type="button"
+              >
+                600,000 GAS (HIGH)
               </button>
             </div>
 
-            <div className="px-3 py-2 rounded bg-contradiction/15 border border-contradiction/30 text-contradiction-bright font-mono text-xs font-bold flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <XCircle className="w-4 h-4 text-contradiction" />
-                <span>OUT OF GAS — HALTED ABNORMALLY</span>
-              </div>
-              <span className="opacity-80 text-[10px]">STEP 33,333</span>
-            </div>
+            <button
+              onClick={() => runCaseSimulation('BOTH')}
+              className="px-4 py-1.5 rounded-full bg-cream text-canvas font-mono text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              type="button"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>SIMULATE BOTH CONCURRENTLY</span>
+            </button>
 
-            <p className="font-sans text-xs text-cream-dim">
-              Outcome: Fuel exhausted before terminal condition was reached. State transitions reverted.
-            </p>
+            <button
+              onClick={resetDuel}
+              className="p-1.5 rounded-full bg-surface border border-surface-highest/50 hover:bg-surface-high text-muted-light hover:text-cream transition-colors cursor-pointer"
+              title="Reset Case Duel"
+              type="button"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Case B: Infinite Loop Program */}
-        <div className="bg-surface-lowest border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="px-2.5 py-0.5 rounded bg-surface font-mono text-[10px] text-contradiction-bright border border-surface-highest/40">
-                SCENARIO 02
-              </span>
-              <span className="font-mono text-xs text-contradiction font-semibold">
-                NEVER HALTS (TRUE LOOP)
-              </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Case A: Finite but Expensive Program */}
+          <div className="bg-surface-low border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded bg-surface font-mono text-[10px] text-cream border border-surface-highest/40">
+                  SCENARIO 01
+                </span>
+                <span className="font-mono text-xs text-mint font-semibold">
+                  TERMINATES NATURALLY (IN THEORY)
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <h3 className="font-display text-base text-cream font-bold">
+                  CASE A: FINITE BUT EXPENSIVE PROGRAM
+                </h3>
+                <p className="font-sans text-xs text-cream-dim leading-relaxed">
+                  A valid deterministic algorithm (e.g., sorting matrix). It is mathematically proven to terminate at step 500,000.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-surface-lowest border border-surface-highest/30 p-2.5 rounded font-mono text-xs">
+                <div className="flex flex-col">
+                  <span className="text-muted-light text-[10px]">Theoretical Nature</span>
+                  <span className="text-mint font-bold">Natural Exit @ 500k ops</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-light text-[10px]">Allocated Gas</span>
+                  <span className="text-cream font-bold">{duelGasLimit.toLocaleString()} GAS</span>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1">
-              <h3 className="font-display text-base text-cream font-bold">
-                CASE B: INFINITE MALICIOUS LOOP
-              </h3>
-              <p className="font-sans text-xs text-cream-dim leading-relaxed">
-                An adversarial non-terminating routine: <code className="font-mono text-contradiction">while(true) &#123; SLOAD; &#125;</code> designed to stall nodes indefinitely.
+            {/* Outcome Action */}
+            <div className="p-3 rounded-lg bg-surface border border-surface-highest/40 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-light uppercase font-semibold">
+                  EXECUTION STATUS
+                </span>
+                <button
+                  onClick={() => runCaseSimulation('A')}
+                  disabled={caseAStatus === 'running'}
+                  className="px-3 py-1 rounded-full bg-mint text-canvas font-mono text-xs font-bold hover:bg-mint-light disabled:opacity-40 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                  type="button"
+                >
+                  <Play className="w-3 h-3 fill-canvas" />
+                  <span>SIMULATE CASE A</span>
+                </button>
+              </div>
+
+              {/* Dynamic State Box */}
+              {caseAStatus === 'idle' && (
+                <div className="px-3 py-2 rounded bg-surface-lowest border border-surface-highest/40 text-cream-dim font-mono text-xs flex items-center justify-between">
+                  <span>READY TO EXECUTE (500k OPS REQUIRED)</span>
+                  <span className="text-muted-light text-[10px]">IDLE</span>
+                </div>
+              )}
+
+              {caseAStatus === 'running' && (
+                <div className="px-3 py-2 rounded bg-mint/10 border border-mint/30 text-mint font-mono text-xs flex flex-col gap-1 animate-pulse">
+                  <div className="flex justify-between items-center font-bold">
+                    <span>EXECUTING VALID LOGIC...</span>
+                    <span>{caseASteps.toLocaleString()} / 500,000 OPS</span>
+                  </div>
+                  <span className="text-[10px] text-cream-dim">Gas Spent: {caseAGasSpent.toLocaleString()} / {duelGasLimit.toLocaleString()}</span>
+                </div>
+              )}
+
+              {caseAStatus === 'completed' && (
+                <div className="px-3 py-2 rounded bg-mint/20 border border-mint/40 text-mint font-mono text-xs font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-mint" />
+                    <span>NATURAL TERMINATION — STATUS: 1 (SUCCESS)</span>
+                  </div>
+                  <span className="text-[10px]">STEP 500,000</span>
+                </div>
+              )}
+
+              {caseAStatus === 'reverted' && (
+                <div className="px-3 py-2 rounded bg-contradiction/15 border border-contradiction/30 text-contradiction-bright font-mono text-xs font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4 text-contradiction" />
+                    <span>OUT OF GAS — HALTED ABNORMALLY (STATUS: 0)</span>
+                  </div>
+                  <span className="opacity-80 text-[10px]">STEP {caseASteps.toLocaleString()}</span>
+                </div>
+              )}
+
+              <p className="font-sans text-xs text-cream-dim">
+                {caseAStatus === 'completed'
+                  ? 'Outcome: Allocated gas was sufficient! Program halted naturally and returned status 1.'
+                  : caseAStatus === 'reverted'
+                  ? 'Outcome: Fuel exhausted before terminal condition was reached. State transitions reverted.'
+                  : 'Click Simulate to test whether the allocated gas limit is sufficient for natural exit.'}
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-2 bg-surface-low border border-surface-highest/30 p-2.5 rounded font-mono text-xs">
-              <div className="flex flex-col">
-                <span className="text-muted-light text-[10px]">Theoretical Nature</span>
-                <span className="text-contradiction font-bold">Non-Terminating (∞)</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-muted-light text-[10px]">Allocated Gas</span>
-                <span className="text-cream font-bold">100,000 GAS max</span>
-              </div>
-            </div>
           </div>
 
-          {/* Outcome Action */}
-          <div className="p-3 rounded-lg bg-surface border border-surface-highest/40 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-muted-light uppercase font-semibold">
-                EXECUTION SIMULATION
-              </span>
-              <button
-                onClick={() => runGasBurnSimulation('B')}
-                className="px-3 py-1 rounded-full bg-contradiction text-canvas font-mono text-xs font-bold hover:bg-contradiction-bright transition-all flex items-center gap-1 shadow-sm cursor-pointer"
-                type="button"
-              >
-                <Play className="w-3 h-3 fill-canvas" />
-                <span>SIMULATE CASE B</span>
-              </button>
-            </div>
-
-            <div className="px-3 py-2 rounded bg-contradiction/15 border border-contradiction/30 text-contradiction-bright font-mono text-xs font-bold flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <XCircle className="w-4 h-4 text-contradiction" />
-                <span>OUT OF GAS — HALTED ABNORMALLY</span>
+          {/* Case B: Infinite Loop Program */}
+          <div className="bg-surface-low border border-surface-highest/50 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="px-2.5 py-0.5 rounded bg-surface font-mono text-[10px] text-contradiction-bright border border-surface-highest/40">
+                  SCENARIO 02
+                </span>
+                <span className="font-mono text-xs text-contradiction font-semibold">
+                  NEVER HALTS (TRUE LOOP)
+                </span>
               </div>
-              <span className="opacity-80 text-[10px]">STEP 33,333</span>
+
+              <div className="flex flex-col gap-1">
+                <h3 className="font-display text-base text-cream font-bold">
+                  CASE B: INFINITE MALICIOUS LOOP
+                </h3>
+                <p className="font-sans text-xs text-cream-dim leading-relaxed">
+                  An adversarial non-terminating routine: <code className="font-mono text-contradiction">while(true) &#123; SLOAD; &#125;</code> designed to stall nodes indefinitely.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 bg-surface-lowest border border-surface-highest/30 p-2.5 rounded font-mono text-xs">
+                <div className="flex flex-col">
+                  <span className="text-muted-light text-[10px]">Theoretical Nature</span>
+                  <span className="text-contradiction font-bold">Non-Terminating (∞)</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-light text-[10px]">Allocated Gas</span>
+                  <span className="text-cream font-bold">{duelGasLimit.toLocaleString()} GAS</span>
+                </div>
+              </div>
             </div>
 
-            <p className="font-sans text-xs text-cream-dim">
-              Outcome: Fuel exhausted at the exact same physical threshold. State transitions reverted.
-            </p>
+            {/* Outcome Action */}
+            <div className="p-3 rounded-lg bg-surface border border-surface-highest/40 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-muted-light uppercase font-semibold">
+                  EXECUTION STATUS
+                </span>
+                <button
+                  onClick={() => runCaseSimulation('B')}
+                  disabled={caseBStatus === 'running'}
+                  className="px-3 py-1 rounded-full bg-contradiction text-canvas font-mono text-xs font-bold hover:bg-contradiction-bright disabled:opacity-40 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                  type="button"
+                >
+                  <Play className="w-3 h-3 fill-canvas" />
+                  <span>SIMULATE CASE B</span>
+                </button>
+              </div>
+
+              {/* Dynamic State Box */}
+              {caseBStatus === 'idle' && (
+                <div className="px-3 py-2 rounded bg-surface-lowest border border-surface-highest/40 text-cream-dim font-mono text-xs flex items-center justify-between">
+                  <span>READY TO EXECUTE (INFINITE LOOP)</span>
+                  <span className="text-muted-light text-[10px]">IDLE</span>
+                </div>
+              )}
+
+              {caseBStatus === 'running' && (
+                <div className="px-3 py-2 rounded bg-contradiction/10 border border-contradiction/30 text-contradiction-bright font-mono text-xs flex flex-col gap-1 animate-pulse">
+                  <div className="flex justify-between items-center font-bold">
+                    <span>SPINNING IN ADVERSARIAL LOOP...</span>
+                    <span>{caseBSteps.toLocaleString()} STEPS RUN</span>
+                  </div>
+                  <span className="text-[10px] text-cream-dim">Gas Spent: {caseBGasSpent.toLocaleString()} / {duelGasLimit.toLocaleString()}</span>
+                </div>
+              )}
+
+              {caseBStatus === 'reverted' && (
+                <div className="px-3 py-2 rounded bg-contradiction/15 border border-contradiction/30 text-contradiction-bright font-mono text-xs font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4 text-contradiction" />
+                    <span>OUT OF GAS — HALTED ABNORMALLY (STATUS: 0)</span>
+                  </div>
+                  <span className="opacity-80 text-[10px]">STEP {caseBSteps.toLocaleString()}</span>
+                </div>
+              )}
+
+              <p className="font-sans text-xs text-cream-dim">
+                {caseBStatus === 'reverted'
+                  ? 'Outcome: Fuel exhausted at physical threshold. Node was protected from freezing forever.'
+                  : 'Click Simulate to watch how metered gas forcibly terminates infinite loops.'}
+              </p>
+            </div>
           </div>
         </div>
+
+        {/* Live Academic Deduction Callout */}
+        {(caseAStatus === 'reverted' || caseAStatus === 'completed') && caseBStatus === 'reverted' && (
+          <div className="p-4 rounded-xl bg-surface border border-mint/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-mint/20 border border-mint/40 flex items-center justify-center text-mint shrink-0">
+                <Check className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-mono text-xs text-mint font-bold uppercase">
+                  {duelGasLimit === 100_000
+                    ? 'OBSERVATION: IDENTICAL MACHINE OUTPUT (STATUS 0: REVERT)'
+                    : 'OBSERVATION: HIGH BUDGET RESOLUTION'}
+                </span>
+                <p className="font-sans text-xs text-cream-dim">
+                  {duelGasLimit === 100_000
+                    ? 'At 100,000 gas, both Case A and Case B ran out of gas at step 33,333. The blockchain physical state engine cannot differentiate between a legitimate slow computation and an infinite loop!'
+                    : 'At 600,000 gas, Case A completed successfully (Status 1), whereas Case B burned through all 600,000 gas and still reverted. Gas bounds execution; it does not predict termination!'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setDuelGasLimit(duelGasLimit === 100_000 ? 600_000 : 100_000)}
+              className="px-3.5 py-1.5 rounded-full bg-surface-lowest hover:bg-surface-highest border border-surface-highest/60 text-cream font-mono text-xs transition-colors shrink-0 cursor-pointer"
+              type="button"
+            >
+              SWITCH TO {duelGasLimit === 100_000 ? '600k' : '100k'} & RE-TEST
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Core Academic Synthesis Banner */}

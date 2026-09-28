@@ -158,17 +158,20 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
   return (
     <div className="w-full flex flex-col gap-5 animate-fadeIn">
       {/* Top Control & Telemetry Deck */}
-      <div className="w-full bg-surface-low border border-surface-highest/60 rounded-xl p-4 shadow-md">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+      <div className="w-full bg-surface-low border border-surface-highest/60 rounded-xl p-4 shadow-md flex flex-col gap-3.5">
+        {/* Tier 1: Routine Selector & Telemetry Status Strip */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3 border-b border-surface-highest/40">
           {/* Program Selection Cluster */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs uppercase tracking-wider text-muted-light">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="font-mono text-xs uppercase tracking-wider text-muted-light whitespace-nowrap font-medium">
               SELECT ROUTINE:
             </span>
+
+            {/* Routine Selector Pill Bar (Strict 1-line whitespace-nowrap) */}
             <div className="inline-flex p-1 bg-surface-lowest rounded-full border border-surface-highest/50 shrink-0 overflow-x-auto shadow-inner">
               <button
                 onClick={() => setSelectedProgramId('finite-counter')}
-                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'finite-counter'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -176,13 +179,13 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 type="button"
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-2 h-2 rounded-full shrink-0 ${
                     selectedProgramId === 'finite-counter' ? 'bg-mint' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG α: FINITE</span>
+                <span className="whitespace-nowrap">PROG α: FINITE</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
                     selectedProgramId === 'finite-counter'
                       ? 'bg-canvas/10 text-canvas font-bold'
                       : 'bg-surface text-muted-light'
@@ -194,7 +197,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
 
               <button
                 onClick={() => setSelectedProgramId('infinite-loop')}
-                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'infinite-loop'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -202,13 +205,13 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 type="button"
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-2 h-2 rounded-full shrink-0 ${
                     selectedProgramId === 'infinite-loop' ? 'bg-contradiction' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG β: UNBOUNDED</span>
+                <span className="whitespace-nowrap">PROG β: UNBOUNDED</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
                     selectedProgramId === 'infinite-loop'
                       ? 'bg-canvas/10 text-canvas font-bold'
                       : 'bg-surface text-muted-light'
@@ -220,7 +223,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
 
               <button
                 onClick={() => setSelectedProgramId('input-dependent')}
-                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'input-dependent'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -228,13 +231,13 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 type="button"
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-2 h-2 rounded-full shrink-0 ${
                     selectedProgramId === 'input-dependent' ? 'bg-mint' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG γ: PARAMETERIZED</span>
+                <span className="whitespace-nowrap">PROG γ: PARAMETERIZED</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono whitespace-nowrap ${
                     selectedProgramId === 'input-dependent'
                       ? 'bg-canvas/10 text-canvas font-bold'
                       : 'bg-surface text-muted-light'
@@ -247,43 +250,111 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
 
             {/* Scroll line / Range Slider for Parameter N */}
             {selectedProgramId === 'input-dependent' && (
-              <div className="flex items-center gap-2 font-mono text-xs bg-surface px-3 py-1 rounded-full border border-surface-highest/50 shadow-inner">
+              <div
+                className="flex items-center gap-2 font-mono text-xs bg-surface px-3 py-1 rounded-full border border-surface-highest/50 shadow-inner select-none transition-all"
+                onWheel={(e) => {
+                  e.preventDefault();
+                  if (e.deltaY < 0) {
+                    setInputN((prev) => Math.min(25, prev + 1));
+                    soundManager.playStepTick();
+                  } else if (e.deltaY > 0) {
+                    setInputN((prev) => Math.max(1, prev - 1));
+                    soundManager.playStepTick();
+                  }
+                }}
+                title="Scroll with mouse wheel or drag slider to adjust N (1 to 25)"
+              >
                 <span className="text-muted-light whitespace-nowrap font-semibold">N:</span>
                 <button
-                  onClick={() => setInputN((prev) => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    setInputN((prev) => Math.max(1, prev - 1));
+                    soundManager.playStepTick();
+                  }}
                   disabled={inputN <= 1}
-                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors"
+                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors active:scale-95"
                   title="Decrease N by 1"
                   type="button"
+                  aria-label="Decrease N"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
                 <input
                   type="range"
                   min="1"
-                  max="20"
+                  max="25"
                   value={inputN}
-                  onChange={(e) => setInputN(Number(e.target.value))}
-                  className="w-20 sm:w-28 accent-mint cursor-pointer h-1.5 bg-surface-highest rounded-lg appearance-none"
+                  onChange={(e) => {
+                    setInputN(Number(e.target.value));
+                    soundManager.playStepTick();
+                  }}
+                  className="w-24 sm:w-32 accent-mint cursor-pointer h-1.5 bg-surface-highest rounded-lg appearance-none"
                   title={`Scroll line: N = ${inputN}`}
+                  aria-label="Scroll line parameter N"
                 />
                 <button
-                  onClick={() => setInputN((prev) => Math.min(25, prev + 1))}
+                  onClick={() => {
+                    setInputN((prev) => Math.min(25, prev + 1));
+                    soundManager.playStepTick();
+                  }}
                   disabled={inputN >= 25}
-                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors"
+                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors active:scale-95"
                   title="Increase N by 1"
                   type="button"
+                  aria-label="Increase N"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
-                <span className="px-2 py-0.5 bg-mint/15 border border-mint/40 text-mint font-bold rounded text-xs min-w-[28px] text-center">
+                <span className="px-2 py-0.5 bg-mint/15 border border-mint/40 text-mint font-bold rounded text-xs min-w-[30px] text-center">
                   {inputN}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Live Execution Controls */}
+          {/* Telemetry Status Strip */}
+          <div className="flex items-center gap-2 overflow-x-auto shrink-0">
+            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-2 shrink-0">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isHalted
+                    ? 'bg-cream'
+                    : isPlaying
+                    ? 'bg-mint animate-pulse'
+                    : 'bg-muted-light'
+                }`}
+              ></span>
+              <span
+                className={`font-mono text-xs font-bold ${
+                  isHalted ? 'text-cream' : isPlaying ? 'text-mint' : 'text-cream-dim'
+                }`}
+              >
+                {isHalted
+                  ? '■ HALTED (COMPLETED)'
+                  : isPlaying
+                  ? '● RUNNING'
+                  : 'PAUSED / READY'}
+              </span>
+            </div>
+
+            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-1.5 font-mono text-xs shrink-0">
+              <span className="text-muted-light">STEPS:</span>
+              <span className="text-cream font-bold tracking-wider">
+                {String(executionState.step).padStart(4, '0')}
+              </span>
+            </div>
+
+            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-2 font-mono text-xs shrink-0">
+              <span className="text-muted-light">R[i]:</span>
+              <span className="text-mint font-bold text-sm">{regI}</span>
+              <span className="text-muted-dark">|</span>
+              <span className="text-muted-light">ACC:</span>
+              <span className="text-cream">0x0{regI.toString(16)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tier 2: Live Execution Controls & Architecture Subtitle */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={toggleRun}
@@ -327,15 +398,15 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
             </button>
 
             {/* Speed Control Pill */}
-            <div className="flex items-center gap-1 bg-surface px-2 py-1 rounded-full border border-surface-highest/40 font-mono text-xs">
+            <div className="flex items-center gap-1 bg-surface px-2.5 py-1.5 rounded-full border border-surface-highest/40 font-mono text-xs">
               <Sliders className="w-3 h-3 text-muted-light" />
               {[1, 2, 4].map((spd) => (
                 <button
                   key={spd}
                   onClick={() => setSpeedMultiplier(spd)}
-                  className={`px-1.5 py-0.5 rounded text-[11px] ${
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
                     speedMultiplier === spd
-                      ? 'bg-cream text-canvas font-bold'
+                      ? 'bg-cream text-canvas shadow-xs font-bold'
                       : 'text-muted-light hover:text-cream'
                   }`}
                 >
@@ -345,45 +416,10 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
             </div>
           </div>
 
-          {/* Telemetry Status Strip */}
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-2 shrink-0">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  isHalted
-                    ? 'bg-cream'
-                    : isPlaying
-                    ? 'bg-mint animate-pulse'
-                    : 'bg-muted-light'
-                }`}
-              ></span>
-              <span
-                className={`font-mono text-xs font-bold ${
-                  isHalted ? 'text-cream' : isPlaying ? 'text-mint' : 'text-cream-dim'
-                }`}
-              >
-                {isHalted
-                  ? '■ HALTED (COMPLETED)'
-                  : isPlaying
-                  ? '● RUNNING'
-                  : 'PAUSED / READY'}
-              </span>
-            </div>
-
-            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-1.5 font-mono text-xs shrink-0">
-              <span className="text-muted-light">STEPS:</span>
-              <span className="text-cream font-bold tracking-wider">
-                {String(executionState.step).padStart(4, '0')}
-              </span>
-            </div>
-
-            <div className="bg-surface-lowest px-3 py-1.5 rounded-full border border-surface-highest/40 flex items-center gap-2 font-mono text-xs shrink-0">
-              <span className="text-muted-light">R[i]:</span>
-              <span className="text-mint font-bold text-sm">{regI}</span>
-              <span className="text-muted-dark">|</span>
-              <span className="text-muted-light">ACC:</span>
-              <span className="text-cream">0x0{regI.toString(16)}</span>
-            </div>
+          <div className="font-mono text-[11px] text-muted-light flex items-center gap-2">
+            <span className="hidden md:inline">DETERMINISTIC EVM / TURING STEPPER</span>
+            <span className="hidden md:inline w-1 h-1 rounded-full bg-muted-light/60"></span>
+            <span className="text-cream-dim">SAFETY CHECKPOINT: 67 STEPS/CYCLE</span>
           </div>
         </div>
       </div>

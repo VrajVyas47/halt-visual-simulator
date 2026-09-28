@@ -107,23 +107,23 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
               <div className="flex flex-wrap items-center gap-2 py-1">
                 <div className="flex items-center gap-1.5 bg-surface-high border border-mint/40 px-3 py-1 rounded-full shadow-sm">
                   <span className="w-2 h-2 rounded-full bg-mint shadow-[0_0_8px_currentColor]"></span>
-                  <span className="font-mono text-xs text-cream font-semibold">01 SIMULATE</span>
+                  <span className="font-mono text-xs text-cream font-semibold">SIMULATE</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-muted-dark" />
                 <button
                   onClick={() => onNavigateStage('stage-02-predictor')}
-                  className="flex items-center gap-1.5 bg-surface border border-surface-highest/40 px-3 py-1 rounded-full opacity-70 hover:opacity-100 transition-opacity"
+                  className="flex items-center gap-1.5 bg-surface border border-surface-highest/40 px-3 py-1 rounded-full opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-light"></span>
-                  <span className="font-mono text-xs text-cream-dim">02 PREDICTOR</span>
+                  <span className="font-mono text-xs text-cream-dim">PREDICTOR</span>
                 </button>
                 <ArrowRight className="w-3.5 h-3.5 text-muted-dark opacity-50" />
                 <button
                   onClick={() => onNavigateStage('stage-03-reality')}
-                  className="flex items-center gap-1.5 bg-surface border border-surface-highest/40 px-3 py-1 rounded-full opacity-50 hover:opacity-100 transition-opacity"
+                  className="flex items-center gap-1.5 bg-surface border border-surface-highest/40 px-3 py-1 rounded-full opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-light"></span>
-                  <span className="font-mono text-xs text-cream-dim">03 REALITY</span>
+                  <span className="font-mono text-xs text-cream-dim">REALITY</span>
                 </button>
               </div>
 

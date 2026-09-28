@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { evaluateParadox } from '../../engine/predictor';
 import type { PredictorDecision, ParadoxEvaluation } from '../../engine/predictor';
+import { soundManager } from '../../utils/audio';
 
 interface Stage02PredictorProps {
   onProceedToReality: () => void;
@@ -29,6 +30,7 @@ export const Stage02Predictor: React.FC<Stage02PredictorProps> = ({
   const handleSelectDecision = (decision: PredictorDecision) => {
     setSelectedDecision(decision);
     setTestedDecisions((prev) => new Set(prev).add(decision));
+    soundManager.playContradictionBuzz();
   };
 
   const handleReset = () => {

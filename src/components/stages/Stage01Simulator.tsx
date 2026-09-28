@@ -6,6 +6,8 @@ import {
   RotateCcw,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  ShieldAlert,
   ArrowRight,
   Sliders,
 } from 'lucide-react';
@@ -17,6 +19,7 @@ import {
 import { createInitialState, executeStep } from '../../engine/interpreter';
 import type { ExecutionState } from '../../engine/interpreter';
 import type { ProgramDefinition } from '../../engine/types';
+import { soundManager } from '../../utils/audio';
 
 interface Stage01SimulatorProps {
   onProceedToPredictor: () => void;
@@ -44,6 +47,8 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
   );
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [nextCheckpointStep, setNextCheckpointStep] = useState<number>(67);
+  const [showCheckpointModal, setShowCheckpointModal] = useState<boolean>(false);
   const timerRef = useRef<number | null>(null);
   const traceEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -51,6 +56,8 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
   useEffect(() => {
     setIsPlaying(false);
     if (timerRef.current) clearInterval(timerRef.current);
+    setNextCheckpointStep(67);
+    setShowCheckpointModal(false);
     setExecutionState(createInitialState(currentProgram));
   }, [currentProgram]);
 
@@ -66,16 +73,36 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
       setExecutionState((prev) => {
         if (prev.status === 'halted') {
           setIsPlaying(false);
+          soundManager.playHaltChime();
           return prev;
         }
-        return executeStep(currentProgram, prev);
+
+        const nextState = executeStep(currentProgram, prev);
+        soundManager.playStepTick();
+
+        if (nextState.status === 'halted') {
+          setIsPlaying(false);
+          soundManager.playHaltChime();
+          return nextState;
+        }
+
+        // Automatic stop at checkpoint (67, 134, 201...)
+        if (nextState.step >= nextCheckpointStep) {
+          setIsPlaying(false);
+          soundManager.playWarningTone();
+          setShowCheckpointModal(true);
+        } else if (nextState.step === 60) {
+          soundManager.playWarningTone();
+        }
+
+        return nextState;
       });
     }, interval);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, speedMultiplier, currentProgram]);
+  }, [isPlaying, speedMultiplier, currentProgram, nextCheckpointStep]);
 
   // Auto-scroll execution trace
   useEffect(() => {
@@ -84,18 +111,36 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
 
   const handleStep = () => {
     setIsPlaying(false);
-    setExecutionState((prev) => executeStep(currentProgram, prev));
+    setExecutionState((prev) => {
+      const nextState = executeStep(currentProgram, prev);
+      soundManager.playStepTick();
+      if (nextState.status === 'halted') {
+        soundManager.playHaltChime();
+      }
+      if (nextState.step >= nextCheckpointStep) {
+        soundManager.playWarningTone();
+        setShowCheckpointModal(true);
+      }
+      return nextState;
+    });
   };
 
   const handleReset = () => {
     setIsPlaying(false);
     if (timerRef.current) clearInterval(timerRef.current);
+    setNextCheckpointStep(67);
+    setShowCheckpointModal(false);
     setExecutionState(createInitialState(currentProgram));
+  };
+
+  const handleContinueCheckpoint = () => {
+    setNextCheckpointStep((prev) => prev + 67);
+    setShowCheckpointModal(false);
+    setIsPlaying(true);
   };
 
   const toggleRun = () => {
     if (executionState.status === 'halted') {
-      // If halted, reset then run
       const freshState = createInitialState(currentProgram);
       setExecutionState(freshState);
       setIsPlaying(true);
@@ -296,6 +341,97 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Step 60+ Warning Banner for Unbounded Execution */}
+      {isInfinite && executionState.step >= 60 && !showCheckpointModal && (
+        <div className="w-full bg-surface-low border border-amber-500/50 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-amber-400 font-bold uppercase tracking-wider">
+                  ⚠️ INFINITE RUNAWAY WARNING: STEP {executionState.step}
+                </span>
+                <span className="text-[10px] font-mono text-cream-dim bg-surface px-2 py-0.5 rounded-full border border-surface-highest/40">
+                  NO HALT CONDITION
+                </span>
+              </div>
+              <p className="font-sans text-xs text-cream-dim mt-0.5">
+                The execution has reached step {executionState.step} and will continue indefinitely unless stopped. Automatic safety pause will trigger at Step {nextCheckpointStep}.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            {isPlaying && (
+              <button
+                onClick={() => setIsPlaying(false)}
+                className="px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500 hover:text-canvas text-amber-300 font-mono text-xs font-semibold transition-all cursor-pointer"
+                type="button"
+              >
+                STOP EXECUTION
+              </button>
+            )}
+            <button
+              onClick={handleReset}
+              className="px-3 py-1.5 rounded-full bg-surface hover:bg-surface-high border border-surface-highest/50 text-cream-dim hover:text-contradiction font-mono text-xs transition-all cursor-pointer"
+              type="button"
+            >
+              RESTART
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 67 Checkpoint Automatic Pause Modal Overlay */}
+      {showCheckpointModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-surface-low border border-contradiction/50 max-w-lg w-full rounded-2xl p-6 shadow-2xl flex flex-col gap-4 relative overflow-hidden">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-contradiction/20 border border-contradiction/50 flex items-center justify-center text-contradiction shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-mono text-xs text-contradiction-bright font-bold uppercase tracking-wider">
+                  AUTOMATIC SAFETY PAUSE AT STEP {executionState.step}
+                </span>
+                <h3 className="font-display text-lg text-cream font-bold">
+                  UNBOUNDED LOOP THRESHOLD REACHED
+                </h3>
+              </div>
+            </div>
+
+            <p className="font-sans text-xs text-cream-dim leading-relaxed">
+              Execution has completed another <strong>67 steps</strong> without terminating. Because this program lacks a termination predicate, it will run infinitely on an ideal Turing tape. In physical computers, an external resource bound is mandatory to stop execution.
+            </p>
+
+            <div className="bg-surface-lowest p-3 rounded-lg border border-surface-highest/40 font-mono text-xs text-muted-light flex justify-between items-center">
+              <span>CURRENT ITERATIONS:</span>
+              <span className="text-mint font-bold text-sm">i = {regI}</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
+              <button
+                onClick={handleReset}
+                className="px-4 py-2.5 rounded-full bg-surface hover:bg-surface-high border border-surface-highest/60 text-muted-light hover:text-contradiction font-mono text-xs font-semibold transition-all cursor-pointer"
+                type="button"
+              >
+                RESTART ROUTINE
+              </button>
+              <button
+                onClick={handleContinueCheckpoint}
+                className="px-5 py-2.5 rounded-full bg-cream hover:bg-white text-canvas font-mono text-xs font-bold tracking-wide transition-all glow-cream hover:glow-mint shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                type="button"
+              >
+                <span>CONTINUE (+67 STEPS)</span>
+                <ArrowRight className="w-3.5 h-3.5 text-mint" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Dual-Pane: Graph & Execution Trace */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">

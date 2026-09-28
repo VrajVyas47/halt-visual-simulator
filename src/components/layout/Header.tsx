@@ -2,6 +2,8 @@ import React from 'react';
 import type { StageId } from '../../engine/types';
 import { Volume2, VolumeX, RotateCcw, Activity } from 'lucide-react';
 
+import { soundManager } from '../../utils/audio';
+
 interface HeaderProps {
   currentStage: StageId;
   onSelectStage: (stage: StageId) => void;
@@ -13,13 +15,19 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectStage,
   onResetAll,
 }) => {
-  const [audioEnabled, setAudioEnabled] = React.useState(false);
+  const [audioEnabled, setAudioEnabled] = React.useState(soundManager.isEnabled());
+
+  const toggleAudio = () => {
+    const next = !audioEnabled;
+    setAudioEnabled(next);
+    soundManager.setEnabled(next);
+  };
 
   const stages: { id: StageId; label: string; short: string }[] = [
-    { id: 'stage-00-intro', label: '00 INTRO : START', short: '00 INTRO' },
-    { id: 'stage-01-simulator', label: '01 SIMULATE : TRACE GRAPH', short: '01 SIMULATE' },
-    { id: 'stage-02-predictor', label: '02 PREDICTOR : PARADOX', short: '02 PREDICTOR' },
-    { id: 'stage-03-reality', label: '03 REALITY : GAS BOUNDS', short: '03 REALITY' },
+    { id: 'stage-00-intro', label: 'INTRO', short: 'INTRO' },
+    { id: 'stage-01-simulator', label: 'SIMULATE', short: 'SIMULATE' },
+    { id: 'stage-02-predictor', label: 'PREDICTOR', short: 'PREDICTOR' },
+    { id: 'stage-03-reality', label: 'REALITY', short: 'REALITY' },
   ];
 
   return (
@@ -77,13 +85,17 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <button
-          onClick={() => setAudioEnabled(!audioEnabled)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border ${
+          onClick={toggleAudio}
+          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border cursor-pointer ${
             audioEnabled
               ? 'bg-mint/20 border-mint text-mint'
               : 'bg-surface-low border-surface-highest/50 text-muted-light hover:text-cream hover:bg-surface'
           }`}
-          title={audioEnabled ? 'Mute Telemetry Clicks' : 'Enable Telemetry Audio'}
+          title={
+            audioEnabled
+              ? 'Telemetry Audio: ACTIVE (Synthesizer clicks & feedback enabled - Click to Mute)'
+              : 'Telemetry Audio: MUTED (Click to Enable subtle lab audio feedback)'
+          }
           type="button"
         >
           {audioEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}

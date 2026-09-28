@@ -15,6 +15,7 @@ import {
   calculateComplexityMetrics,
 } from '../../data/gasData';
 import type { ComplexityClass } from '../../data/gasData';
+import { soundManager } from '../../utils/audio';
 
 interface Stage03RealityProps {
   onRestartSimulation: () => void;
@@ -46,10 +47,12 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
     const target = 0;
     const interval = window.setInterval(() => {
       current -= 5000;
+      soundManager.playStepTick();
       if (current <= target) {
         current = target;
         clearInterval(interval);
         setIsBurningGas(false);
+        soundManager.playWarningTone();
       }
       setCurrentGas(current);
     }, 40);

@@ -10,6 +10,8 @@ import {
   ShieldAlert,
   ArrowRight,
   Sliders,
+  Minus,
+  Plus,
 } from 'lucide-react';
 import {
   FINITE_COUNTER_PROGRAM,
@@ -163,10 +165,10 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
             <span className="font-mono text-xs uppercase tracking-wider text-muted-light">
               SELECT ROUTINE:
             </span>
-            <div className="inline-flex p-1 bg-surface-lowest rounded-full border border-surface-highest/50">
+            <div className="inline-flex p-1 bg-surface-lowest rounded-full border border-surface-highest/50 shrink-0 overflow-x-auto shadow-inner">
               <button
                 onClick={() => setSelectedProgramId('finite-counter')}
-                className={`px-3 py-1 rounded-full font-mono text-xs transition-all flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                   selectedProgramId === 'finite-counter'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -178,12 +180,21 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                     selectedProgramId === 'finite-counter' ? 'bg-mint' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG α: FINITE COUNTER [i &lt; 5]</span>
+                <span>PROG α: FINITE</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    selectedProgramId === 'finite-counter'
+                      ? 'bg-canvas/10 text-canvas font-bold'
+                      : 'bg-surface text-muted-light'
+                  }`}
+                >
+                  [i &lt; 5]
+                </span>
               </button>
 
               <button
                 onClick={() => setSelectedProgramId('infinite-loop')}
-                className={`px-3 py-1 rounded-full font-mono text-xs transition-all flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                   selectedProgramId === 'infinite-loop'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -195,12 +206,21 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                     selectedProgramId === 'infinite-loop' ? 'bg-contradiction' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG β: UNBOUNDED LOOP [∞]</span>
+                <span>PROG β: UNBOUNDED</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    selectedProgramId === 'infinite-loop'
+                      ? 'bg-canvas/10 text-canvas font-bold'
+                      : 'bg-surface text-muted-light'
+                  }`}
+                >
+                  [∞]
+                </span>
               </button>
 
               <button
                 onClick={() => setSelectedProgramId('input-dependent')}
-                className={`px-3 py-1 rounded-full font-mono text-xs transition-all flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
                   selectedProgramId === 'input-dependent'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
                     : 'text-cream-dim hover:text-white hover:bg-surface'
@@ -212,27 +232,53 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                     selectedProgramId === 'input-dependent' ? 'bg-mint' : 'bg-muted-light'
                   }`}
                 ></span>
-                <span>PROG γ: PARAMETERIZED [i &lt; {inputN}]</span>
+                <span>PROG γ: PARAMETERIZED</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                    selectedProgramId === 'input-dependent'
+                      ? 'bg-canvas/10 text-canvas font-bold'
+                      : 'bg-surface text-muted-light'
+                  }`}
+                >
+                  [i &lt; {inputN}]
+                </span>
               </button>
             </div>
 
-            {/* Input Parameter N selector when in parameterized mode */}
+            {/* Scroll line / Range Slider for Parameter N */}
             {selectedProgramId === 'input-dependent' && (
-              <div className="flex items-center gap-1.5 ml-2 font-mono text-xs bg-surface px-2.5 py-1 rounded-full border border-surface-highest/50">
-                <span className="text-muted-light">N =</span>
-                {[3, 5, 8, 12].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setInputN(val)}
-                    className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                      inputN === val
-                        ? 'bg-mint text-canvas font-bold'
-                        : 'text-cream-dim hover:text-white'
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 font-mono text-xs bg-surface px-3 py-1 rounded-full border border-surface-highest/50 shadow-inner">
+                <span className="text-muted-light whitespace-nowrap font-semibold">N:</span>
+                <button
+                  onClick={() => setInputN((prev) => Math.max(1, prev - 1))}
+                  disabled={inputN <= 1}
+                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors"
+                  title="Decrease N by 1"
+                  type="button"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={inputN}
+                  onChange={(e) => setInputN(Number(e.target.value))}
+                  className="w-20 sm:w-28 accent-mint cursor-pointer h-1.5 bg-surface-highest rounded-lg appearance-none"
+                  title={`Scroll line: N = ${inputN}`}
+                />
+                <button
+                  onClick={() => setInputN((prev) => Math.min(25, prev + 1))}
+                  disabled={inputN >= 25}
+                  className="w-5 h-5 rounded-full bg-surface-lowest hover:bg-surface-high disabled:opacity-30 border border-surface-highest/60 flex items-center justify-center text-cream cursor-pointer transition-colors"
+                  title="Increase N by 1"
+                  type="button"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+                <span className="px-2 py-0.5 bg-mint/15 border border-mint/40 text-mint font-bold rounded text-xs min-w-[28px] text-center">
+                  {inputN}
+                </span>
               </div>
             )}
           </div>

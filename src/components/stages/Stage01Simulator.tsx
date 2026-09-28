@@ -52,7 +52,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
   const [nextCheckpointStep, setNextCheckpointStep] = useState<number>(67);
   const [showCheckpointModal, setShowCheckpointModal] = useState<boolean>(false);
   const timerRef = useRef<number | null>(null);
-  const traceEndRef = useRef<HTMLDivElement | null>(null);
+  const traceContainerRef = useRef<HTMLDivElement | null>(null);
 
   // When program selection changes, reset
   useEffect(() => {
@@ -106,9 +106,11 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
     };
   }, [isPlaying, speedMultiplier, currentProgram, nextCheckpointStep]);
 
-  // Auto-scroll execution trace
+  // Auto-scroll execution trace container internally
   useEffect(() => {
-    traceEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (traceContainerRef.current) {
+      traceContainerRef.current.scrollTop = traceContainerRef.current.scrollHeight;
+    }
   }, [executionState.trace.length]);
 
   const handleStep = () => {
@@ -884,7 +886,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
             </div>
 
             {/* Trace List Viewport */}
-            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 font-mono text-xs">
+            <div ref={traceContainerRef} className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 font-mono text-xs">
               {executionState.trace.map((entry, idx) => {
                 const isLatest = idx === executionState.trace.length - 1;
                 return (
@@ -908,7 +910,6 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                   </div>
                 );
               })}
-              <div ref={traceEndRef} />
             </div>
 
             <div className="mt-3 pt-2 border-t border-surface-highest/40 flex items-center justify-between text-muted-light font-mono text-[11px] shrink-0">

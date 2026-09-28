@@ -45,7 +45,6 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
   const [inputN, setInputN] = useState<number>(100);
   const [viewMode, setViewMode] = useState<'chart' | 'terminal'>('chart');
   const [chartScale, setChartScale] = useState<'auto' | 'block'>('auto');
-  const [hoveredPoint, setHoveredPoint] = useState<{ n: number; gas: number; notes?: string; isAnomalous?: boolean } | null>(null);
 
   // Active Case Study dataset for current complexity
   const activeCaseStudyPoints = React.useMemo(() => {
@@ -97,7 +96,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
   const [labLogs, setLabLogs] = useState<OpcodeLogEntry[]>([]);
   const [labSpeed, setLabSpeed] = useState<number>(1); // 1x, 5x, 20x
   const labTimerRef = useRef<number | null>(null);
-  const labLogsEndRef = useRef<HTMLDivElement | null>(null);
+  const terminalScrollRef = useRef<HTMLDivElement | null>(null);
 
   // Case A vs Case B Duel Simulator State
   const [duelGasLimit, setDuelGasLimit] = useState<number>(100_000);
@@ -111,10 +110,10 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
   const metrics = calculateComplexityMetrics(complexity, inputN, gasInitialCap);
 
-  // Auto-scroll terminal logs
+  // Auto-scroll terminal log internally without moving window or parent scroll
   useEffect(() => {
-    if (viewMode === 'terminal') {
-      labLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (viewMode === 'terminal' && terminalScrollRef.current) {
+      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
     }
   }, [labLogs.length, viewMode]);
 
@@ -179,7 +178,6 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
       return;
     }
 
-    setViewMode('terminal');
     setLabStatus('running');
     setIsBurningGas(true);
     setSimulationScenario(`EVM ${complexity.toUpperCase()} (N=${inputN})`);
@@ -257,7 +255,6 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
   };
 
   const stepLabSimulation = () => {
-    setViewMode('terminal');
     setLabStatus('paused');
     const totalTargetOps = metrics.operations;
     const baseGas = 21000;
@@ -800,12 +797,6 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Hovered point readout */}
-              {viewMode === 'chart' && hoveredPoint && (
-                <span className="hidden md:inline-block px-2 py-0.5 rounded font-mono text-[11px] bg-mint/15 border border-mint/40 text-mint font-bold animate-fadeIn">
-                  N = {hoveredPoint.n}: {hoveredPoint.gas.toLocaleString()} GAS
-                </span>
-              )}
 
               {/* Scale Mode Toggle (Visible in Chart View) */}
               {viewMode === 'chart' && (
@@ -862,7 +853,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   <span>GAS LIMIT: {gasInitialCap.toLocaleString()}</span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-1 pr-1 font-mono text-xs">
+                <div ref={terminalScrollRef} className="flex-1 overflow-y-auto py-2 flex flex-col gap-1 pr-1 font-mono text-xs">
                   {labLogs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-muted-light gap-2">
                       <Cpu className="w-8 h-8 text-muted-dark" />
@@ -882,7 +873,6 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                       </div>
                     ))
                   )}
-                  <div ref={labLogsEndRef} />
                 </div>
 
                 {/* Final EVM Receipt Banner */}
@@ -1033,7 +1023,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                       const activeX = 60 + (Math.min(200, inputN) / 200) * 600;
                       const activeY = 200 - (Math.min(chartMaxY, metrics.estimatedGas) / chartMaxY) * 175;
                       return (
-                        <g key="active-marker">
+                        <g key="active-marker" className="pointer-events-none select-none">
                           <line
                             x1={activeX}
                             y1="200"
@@ -1047,7 +1037,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                           <circle cx={activeX} cy={activeY} r="4.5" fill="#4EBA86" stroke="#0B0B0A" strokeWidth="2" />
 
                           {/* Floating Pill Label */}
-                          <g transform={`translate(${Math.max(105, Math.min(575, activeX))}, ${Math.max(25, activeY - 14)})`}>
+                          <g transform={`translate(${Math.max(105, Math.min(575, activeX))}, ${Math.max(25, activeY - 14)})`} className="pointer-events-none select-none">
                             <rect
                               x="-65"
                               y="-11"
@@ -1083,16 +1073,17 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                         return (
                           <g
                             key={pt.n}
-                            className="cursor-pointer group select-none"
+                            className="cursor-pointer select-none"
                             onClick={() => {
                               setInputN(pt.n);
                               soundManager.playStepTick();
                             }}
-                            onMouseEnter={() => setHoveredPoint(pt)}
-                            onMouseLeave={() => setHoveredPoint(null)}
                           >
+                            {/* Generous stable invisible hit target (no flicker or transform jumps) */}
+                            <circle cx={px} cy={py} r="14" fill="transparent" />
+
                             {pt.isAnomalous && (
-                              <circle cx={px} cy={py} r="10" fill="#E05656" opacity="0.3" className="animate-ping" />
+                              <circle cx={px} cy={py} r="10" fill="#E05656" opacity="0.3" className="animate-ping pointer-events-none" />
                             )}
                             <circle
                               cx={px}
@@ -1100,8 +1091,8 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                               r={isCurrent ? 6 : 4}
                               fill={pt.isAnomalous ? '#E05656' : isCurrent ? '#F3E9D3' : '#4EBA86'}
                               stroke="#0B0B0A"
-                              strokeWidth="1.5"
-                              className="transition-transform group-hover:scale-125"
+                              strokeWidth={isCurrent ? 2 : 1.5}
+                              className="pointer-events-none transition-colors duration-150"
                             />
                           </g>
                         );

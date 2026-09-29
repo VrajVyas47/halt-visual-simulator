@@ -427,7 +427,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                 cy="18"
                 r="14"
                 fill="none"
-                stroke="#25231F"
+                className="stroke-surface-high"
                 strokeWidth="3.5"
               />
               <circle
@@ -579,7 +579,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer ${
                     mode === 'casestudy'
                       ? 'bg-cream text-canvas shadow-sm'
-                      : 'text-cream-dim hover:text-white'
+                      : 'text-cream-dim hover:text-cream-light'
                   }`}
                   type="button"
                 >
@@ -590,7 +590,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                   className={`py-1.5 rounded-md font-mono text-xs font-semibold transition-all cursor-pointer ${
                     mode === 'theoretical'
                       ? 'bg-cream text-canvas shadow-sm'
-                      : 'text-cream-dim hover:text-white'
+                      : 'text-cream-dim hover:text-cream-light'
                   }`}
                   type="button"
                 >
@@ -612,7 +612,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                     className={`py-1 rounded-full font-mono text-xs transition-all cursor-pointer ${
                       complexity === cls
                         ? 'bg-cream text-canvas font-bold shadow-sm'
-                        : 'text-cream-dim hover:text-white'
+                        : 'text-cream-dim hover:text-cream-light'
                     }`}
                     type="button"
                   >
@@ -636,7 +636,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                     className={`py-1 rounded-full transition-all cursor-pointer ${
                       inputN === nVal
                         ? 'bg-cream text-canvas font-bold shadow-sm'
-                        : 'text-cream-dim hover:text-white'
+                        : 'text-cream-dim hover:text-cream-light'
                     }`}
                     type="button"
                   >
@@ -921,11 +921,11 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                           : `${Math.round(val / 1000)}k`;
                       return (
                         <g key={frac}>
-                          <line x1="60" y1={yPos} x2="660" y2={yPos} stroke="#22201C" strokeDasharray="3 3" />
+                          <line x1="60" y1={yPos} x2="660" y2={yPos} className="stroke-surface-highest/40" strokeDasharray="3 3" />
                           <text
                             x="52"
                             y={yPos + 3.5}
-                            fill="#7E7768"
+                            className="fill-muted"
                             fontFamily="JetBrains Mono"
                             fontSize="9"
                             textAnchor="end"
@@ -941,11 +941,11 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                       const xPos = 60 + (nVal / 200) * 600;
                       return (
                         <g key={nVal}>
-                          <line x1={xPos} y1="25" x2={xPos} y2="200" stroke="#22201C" strokeDasharray="3 3" />
+                          <line x1={xPos} y1="25" x2={xPos} y2="200" className="stroke-surface-highest/40" strokeDasharray="3 3" />
                           <text
                             x={xPos}
                             y="218"
-                            fill="#7E7768"
+                            className="fill-muted"
                             fontFamily="JetBrains Mono"
                             fontSize="9"
                             textAnchor="middle"
@@ -955,7 +955,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                         </g>
                       );
                     })}
-                    <text x="360" y="228" fill="#5E584D" fontFamily="JetBrains Mono" fontSize="8.5" textAnchor="middle">
+                    <text x="360" y="228" className="fill-muted-light" fontFamily="JetBrains Mono" fontSize="8.5" textAnchor="middle">
                       INPUT MAGNITUDE (N)
                     </text>
 
@@ -1033,8 +1033,8 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                             strokeDasharray="2 2"
                             strokeWidth="1.5"
                           />
-                          <circle cx={activeX} cy={activeY} r="7" fill="#4EBA86" opacity="0.3" className="animate-ping" />
-                          <circle cx={activeX} cy={activeY} r="4.5" fill="#4EBA86" stroke="#0B0B0A" strokeWidth="2" />
+                          <circle cx={activeX} cy={activeY} r="7" className="fill-mint" opacity="0.3" />
+                          <circle cx={activeX} cy={activeY} r="4.5" className="fill-mint stroke-canvas" strokeWidth="2" />
 
                           {/* Floating Pill Label */}
                           <g transform={`translate(${Math.max(105, Math.min(575, activeX))}, ${Math.max(25, activeY - 14)})`} className="pointer-events-none select-none">
@@ -1044,18 +1044,14 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
                               width="130"
                               height="20"
                               rx="6"
-                              fill="#141311"
-                              stroke="#4EBA86"
+                              className="fill-surface-lowest stroke-mint shadow-md"
                               strokeWidth="1"
-                              className="shadow-md"
                             />
                             <text
                               textAnchor="middle"
                               y="3"
-                              fill="#FFFFFF"
-                              fontFamily="JetBrains Mono"
+                              className="fill-cream-light font-mono font-bold"
                               fontSize="8.5"
-                              fontWeight="bold"
                             >
                               N = {inputN} • {metrics.estimatedGas.toLocaleString()} GAS
                             </text>
@@ -1193,7 +1189,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
               <button
                 onClick={() => setDuelGasLimit(100_000)}
                 className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                  duelGasLimit === 100_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-white'
+                  duelGasLimit === 100_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-cream-light'
                 }`}
                 type="button"
               >
@@ -1202,7 +1198,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
               <button
                 onClick={() => setDuelGasLimit(600_000)}
                 className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                  duelGasLimit === 600_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-white'
+                  duelGasLimit === 600_000 ? 'bg-cream text-canvas font-bold' : 'text-cream-dim hover:text-cream-light'
                 }`}
                 type="button"
               >
@@ -1212,7 +1208,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
             <button
               onClick={() => runCaseSimulation('BOTH')}
-              className="px-4 py-1.5 rounded-full bg-cream text-canvas font-mono text-xs font-bold hover:bg-white transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-4 py-1.5 rounded-full bg-cream text-canvas font-mono text-xs font-bold hover:bg-cream-light transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
               type="button"
             >
               <Layers className="w-3.5 h-3.5" />
@@ -1473,7 +1469,7 @@ export const Stage03Reality: React.FC<Stage03RealityProps> = ({
 
           <button
             onClick={onRestartSimulation}
-            className="px-6 py-2.5 rounded-full bg-cream hover:bg-white text-canvas font-mono text-xs font-bold tracking-wide transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            className="px-6 py-2.5 rounded-full bg-cream hover:bg-cream-light text-canvas font-mono text-xs font-bold tracking-wide transition-all shadow-md flex items-center gap-2 cursor-pointer"
             type="button"
           >
             <RotateCcw className="w-4 h-4 text-canvas" />

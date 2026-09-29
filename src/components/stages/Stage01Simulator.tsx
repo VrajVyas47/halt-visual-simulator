@@ -176,7 +176,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'finite-counter'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
-                    : 'text-cream-dim hover:text-white hover:bg-surface'
+                    : 'text-cream-dim hover:text-cream-light hover:bg-surface'
                 }`}
                 type="button"
               >
@@ -202,7 +202,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'infinite-loop'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
-                    : 'text-cream-dim hover:text-white hover:bg-surface'
+                    : 'text-cream-dim hover:text-cream-light hover:bg-surface'
                 }`}
                 type="button"
               >
@@ -228,7 +228,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                 className={`px-3 py-1.5 rounded-full font-mono text-xs transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer select-none ${
                   selectedProgramId === 'input-dependent'
                     ? 'bg-cream text-canvas font-semibold shadow-sm'
-                    : 'text-cream-dim hover:text-white hover:bg-surface'
+                    : 'text-cream-dim hover:text-cream-light hover:bg-surface'
                 }`}
                 type="button"
               >
@@ -506,7 +506,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
               </button>
               <button
                 onClick={handleContinueCheckpoint}
-                className="px-5 py-2.5 rounded-full bg-cream hover:bg-white text-canvas font-mono text-xs font-bold tracking-wide transition-all glow-cream hover:glow-mint shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                className="px-5 py-2.5 rounded-full bg-cream hover:bg-cream-light text-canvas font-mono text-xs font-bold tracking-wide transition-all glow-cream hover:glow-mint shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                 type="button"
               >
                 <span>CONTINUE (+67 STEPS)</span>
@@ -538,7 +538,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
           {/* SVG Graph Canvas with Interactive Visual Nodes */}
           <div className="relative w-full h-[480px] bg-surface-low rounded-lg border border-surface-highest/40 p-4 flex items-center justify-center overflow-hidden">
             {/* Background Precision Grid */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#f3e9d3_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none"></div>
+            <div className="absolute inset-0 opacity-15 dark:opacity-10 bg-[radial-gradient(currentColor_1px,transparent_1px)] text-cream-dim [background-size:24px_24px] pointer-events-none"></div>
 
             {/* Program Graph Topology Rendering */}
             <div className="relative w-full h-full">
@@ -951,7 +951,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                       cy="18"
                       r="14"
                       fill="none"
-                      stroke="#25231F"
+                      className="stroke-surface-high"
                       strokeWidth="3.5"
                     />
                     <circle
@@ -959,7 +959,13 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
                       cy="18"
                       r="14"
                       fill="none"
-                      stroke={isHalted ? '#4EBA86' : isInfinite ? '#E05656' : '#E5DECE'}
+                      stroke={
+                        isHalted
+                          ? 'rgb(var(--mint-default))'
+                          : isInfinite
+                          ? 'rgb(var(--contradiction-default))'
+                          : 'rgb(var(--cream-default))'
+                      }
                       strokeDasharray="88, 100"
                       strokeDashoffset={
                         isHalted
@@ -1019,7 +1025,7 @@ export const Stage01Simulator: React.FC<Stage01SimulatorProps> = ({
               </div>
               <button
                 onClick={onProceedToPredictor}
-                className="w-full py-3 bg-cream hover:bg-white text-canvas rounded-full font-mono text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all glow-cream hover:glow-mint shadow-md cursor-pointer"
+                className="w-full py-3 bg-cream hover:bg-cream-light text-canvas rounded-full font-mono text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all glow-cream hover:glow-mint shadow-md cursor-pointer"
                 type="button"
               >
                 <span>PROCEED TO PREDICTOR : PARADOX</span>

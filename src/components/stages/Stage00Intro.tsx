@@ -131,7 +131,7 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
               <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
                 <button
                   onClick={onStartSimulation}
-                  className="group relative px-7 py-3.5 rounded-full bg-cream hover:bg-white text-canvas font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all glow-cream hover:glow-mint hover:-translate-y-0.5 active:translate-y-0 shadow-lg cursor-pointer"
+                  className="group relative px-7 py-3.5 rounded-full bg-cream hover:bg-cream-light text-canvas font-mono text-sm font-semibold flex items-center justify-center gap-3 transition-all glow-cream hover:glow-mint hover:-translate-y-0.5 active:translate-y-0 shadow-lg cursor-pointer"
                   type="button"
                 >
                   <span>START SIMULATION</span>
@@ -181,7 +181,7 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         refY="5"
                         viewBox="0 0 10 10"
                       >
-                        <path d="M 0 1 L 9 5 L 0 9 z" fill="#cfc6b1" />
+                        <path d="M 0 1 L 9 5 L 0 9 z" className="fill-muted" />
                       </marker>
                       <marker
                         id="arrow-green-intro"
@@ -192,7 +192,7 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         refY="5"
                         viewBox="0 0 10 10"
                       >
-                        <path d="M 0 1 L 9 5 L 0 9 z" fill="#70dba4" />
+                        <path d="M 0 1 L 9 5 L 0 9 z" className="fill-mint" />
                       </marker>
                       <marker
                         id="arrow-red-intro"
@@ -203,43 +203,42 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         refY="5"
                         viewBox="0 0 10 10"
                       >
-                        <path d="M 0 1 L 9 5 L 0 9 z" fill="#E05656" />
+                        <path d="M 0 1 L 9 5 L 0 9 z" className="fill-contradiction" />
                       </marker>
                     </defs>
 
                     {/* Paths */}
                     <path
-                      className="animate-pulse"
+                      className="animate-pulse stroke-mint"
                       d="M 75 100 L 155 100"
                       markerEnd="url(#arrow-green-intro)"
-                      stroke="#70dba4"
                       strokeDasharray="4 4"
                       strokeWidth="2"
                     />
                     <path
+                      className="stroke-muted"
                       d="M 195 100 L 275 100"
                       markerEnd="url(#arrow-intro)"
-                      stroke="#cfc6b1"
                       strokeDasharray="3 3"
                       strokeWidth="1.5"
                     />
                     <path
+                      className="stroke-mint"
                       d="M 315 85 C 340 40, 420 40, 445 80"
                       markerEnd="url(#arrow-green-intro)"
-                      stroke="#70dba4"
                       strokeWidth="1.5"
                     />
                     <path
+                      className="stroke-contradiction"
                       d="M 315 115 C 345 160, 420 160, 445 120"
                       markerEnd="url(#arrow-red-intro)"
-                      stroke="#E05656"
                       strokeDasharray="3 3"
                       strokeWidth="1.5"
                     />
                     <path
+                      className="stroke-contradiction"
                       d="M 465 130 C 475 180, 435 195, 305 125"
                       markerEnd="url(#arrow-red-intro)"
-                      stroke="#E05656"
                       strokeDasharray="2 2"
                       strokeWidth="1.5"
                     />
@@ -250,32 +249,26 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cx="0"
                         cy="0"
                         r="18"
-                        fill="#1C1A17"
-                        stroke="#70dba4"
+                        className="fill-surface stroke-mint"
                         strokeWidth="2"
                       />
                       <circle
                         cx="0"
                         cy="0"
                         r="5"
-                        fill="#70dba4"
-                        opacity="0.5"
-                        className="animate-ping"
+                        className="fill-mint opacity-50 animate-ping"
                       />
                       <text
                         dy="4"
-                        fill="#F4EFE6"
-                        fontFamily="JetBrains Mono"
+                        className="fill-cream-light font-mono font-semibold"
                         fontSize="11"
-                        fontWeight="600"
                         textAnchor="middle"
                       >
                         q₀
                       </text>
                       <text
                         dy="-24"
-                        fill="#70dba4"
-                        fontFamily="JetBrains Mono"
+                        className="fill-mint font-mono"
                         fontSize="9"
                         textAnchor="middle"
                       >
@@ -288,24 +281,20 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cx="0"
                         cy="0"
                         r="16"
-                        fill="#1C1A17"
-                        stroke="#cfc6b1"
+                        className="fill-surface stroke-muted"
                         strokeWidth="1.5"
                       />
                       <text
                         dy="4"
-                        fill="#F4EFE6"
-                        fontFamily="JetBrains Mono"
+                        className="fill-cream-light font-mono font-semibold"
                         fontSize="11"
-                        fontWeight="600"
                         textAnchor="middle"
                       >
                         q₁
                       </text>
                       <text
                         dy="26"
-                        fill="#CCC6BB"
-                        fontFamily="JetBrains Mono"
+                        className="fill-muted-light font-mono"
                         fontSize="9"
                         textAnchor="middle"
                       >
@@ -318,24 +307,20 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cx="0"
                         cy="0"
                         r="18"
-                        fill="#1C1A17"
-                        stroke="#E5DECE"
+                        className="fill-surface stroke-cream"
                         strokeWidth="2"
                       />
                       <text
                         dy="4"
-                        fill="#F4EFE6"
-                        fontFamily="JetBrains Mono"
+                        className="fill-cream-light font-mono font-semibold"
                         fontSize="10"
-                        fontWeight="600"
                         textAnchor="middle"
                       >
                         q_eval
                       </text>
                       <text
                         dy="-24"
-                        fill="#F4EFE6"
-                        fontFamily="JetBrains Mono"
+                        className="fill-cream-dim font-mono"
                         fontSize="9"
                         textAnchor="middle"
                       >
@@ -348,8 +333,7 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cx="0"
                         cy="0"
                         r="16"
-                        fill="#1C1A17"
-                        stroke="#70dba4"
+                        className="fill-surface stroke-mint"
                         strokeWidth="1.5"
                       />
                       <circle
@@ -357,23 +341,20 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cy="0"
                         r="12"
                         fill="none"
-                        stroke="#70dba4"
+                        className="stroke-mint"
                         strokeWidth="1"
                       />
                       <text
                         dy="4"
-                        fill="#70dba4"
-                        fontFamily="JetBrains Mono"
+                        className="fill-mint font-mono font-semibold"
                         fontSize="10"
-                        fontWeight="600"
                         textAnchor="middle"
                       >
                         q_halt
                       </text>
                       <text
                         dy="-22"
-                        fill="#70dba4"
-                        fontFamily="JetBrains Mono"
+                        className="fill-mint font-mono"
                         fontSize="9"
                         textAnchor="middle"
                       >
@@ -386,24 +367,20 @@ export const Stage00Intro: React.FC<Stage00IntroProps> = ({
                         cx="0"
                         cy="0"
                         r="16"
-                        fill="#1C1A17"
-                        stroke="#E05656"
+                        className="fill-surface stroke-contradiction"
                         strokeWidth="1.5"
                       />
                       <text
                         dy="4"
-                        fill="#E05656"
-                        fontFamily="JetBrains Mono"
+                        className="fill-contradiction font-mono font-semibold"
                         fontSize="10"
-                        fontWeight="600"
                         textAnchor="middle"
                       >
                         q_loop
                       </text>
                       <text
                         dy="26"
-                        fill="#E05656"
-                        fontFamily="JetBrains Mono"
+                        className="fill-contradiction font-mono"
                         fontSize="9"
                         textAnchor="middle"
                       >

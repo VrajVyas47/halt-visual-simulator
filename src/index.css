@@ -3,12 +3,113 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* LIGHT MODE (Clean Academic Swiss Laboratory / Engineering Paper) */
+    --canvas: 247 245 240;             /* #F7F5F0 */
+    --surface-lowest: 255 255 255;     /* #FFFFFF */
+    --surface-low: 241 237 228;        /* #F1EDE4 */
+    --surface-default: 232 226 215;    /* #E8E2D7 */
+    --surface-high: 221 214 201;       /* #DDD6C9 */
+    --surface-highest: 196 188 172;    /* #C4BCAC */
+
+    /* Typography / Ink */
+    --cream-default: 32 29 24;         /* #201D18 - Deep technical charcoal ink */
+    --cream-light: 15 14 11;           /* #0F0E0B - Pitch black */
+    --cream-dim: 84 78 67;             /* #544E43 - Subdued body text */
+    --cream-container: 60 55 45;       /* #3C372D - Container ink */
+
+    /* Mint / Success / Halting */
+    --mint-default: 22 128 61;         /* #16803D - High contrast laboratory emerald */
+    --mint-dark: 20 83 45;             /* #14532D */
+    --mint-light: 22 163 74;           /* #16A34A */
+    --mint-container: 220 252 231;     /* #DCFCE7 - Soft green badge tint */
+
+    /* Contradiction / Paradox / Loop / Error */
+    --contradiction-default: 220 38 38;    /* #DC2626 */
+    --contradiction-bright: 185 28 28;     /* #B91C1C */
+    --contradiction-container: 254 226 226;/* #FEE2E2 */
+    --contradiction-dark: 127 29 29;       /* #7F1D1D */
+
+    /* Muted */
+    --muted-default: 117 110 99;      /* #756E63 */
+    --muted-dark: 158 150 137;        /* #9E9689 */
+    --muted-light: 92 86 74;          /* #5C564A */
+
+    /* Semantic Aliases */
+    --primary: 32 29 24;
+    --on-primary: 247 245 240;
+    --primary-container: 232 226 215;
+    --on-primary-container: 60 55 45;
+    --secondary: 22 128 61;
+    --on-secondary: 255 255 255;
+    --secondary-container: 220 252 231;
+    --on-secondary-container: 20 83 45;
+    --on-surface: 32 29 24;
+    --on-surface-variant: 84 78 67;
+    --outline: 158 150 137;
+    --outline-variant: 214 206 193;
+    --error: 220 38 38;
+    --error-container: 254 226 226;
+    --on-error-container: 127 29 29;
+  }
+
+  .dark {
+    /* DARK MODE (Original Cyber-Obsidian Turing Lab) */
+    --canvas: 11 11 10;                /* #0B0B0A */
+    --surface-lowest: 11 11 10;        /* #0B0B0A */
+    --surface-low: 22 21 19;           /* #161513 */
+    --surface-default: 28 26 23;       /* #1C1A17 */
+    --surface-high: 37 35 31;          /* #25231F */
+    --surface-highest: 53 53 52;       /* #353534 */
+
+    /* Typography / Ink */
+    --cream-default: 229 222 206;      /* #E5DECE */
+    --cream-light: 244 239 230;        /* #F4EFE6 */
+    --cream-dim: 207 198 177;          /* #CFC6B1 */
+    --cream-container: 214 205 184;    /* #D6CDB8 */
+
+    /* Mint */
+    --mint-default: 78 186 134;        /* #4EBA86 */
+    --mint-dark: 60 166 114;           /* #3CA672 */
+    --mint-light: 112 219 164;         /* #70DBA4 */
+    --mint-container: 0 56 34;         /* #003822 */
+
+    /* Contradiction */
+    --contradiction-default: 224 86 86;    /* #E05656 */
+    --contradiction-bright: 255 180 171;  /* #FFB4AB */
+    --contradiction-container: 105 0 5;   /* #690005 */
+    --contradiction-dark: 65 0 6;         /* #410006 */
+
+    /* Muted */
+    --muted-default: 126 119 104;      /* #7E7768 */
+    --muted-dark: 74 70 62;            /* #4A463E */
+    --muted-light: 149 144 134;        /* #959086 */
+
+    /* Semantic Aliases */
+    --primary: 243 233 211;            /* #F3E9D3 */
+    --on-primary: 53 48 34;            /* #353022 */
+    --primary-container: 214 205 184;  /* #D6CDB8 */
+    --on-primary-container: 93 87 70;  /* #5D5746 */
+    --secondary: 112 219 164;          /* #70DBA4 */
+    --on-secondary: 0 56 34;           /* #003822 */
+    --secondary-container: 51 163 113; /* #33A371 */
+    --on-secondary-container: 0 49 29; /* #00311D */
+    --on-surface: 244 239 230;         /* #F4EFE6 */
+    --on-surface-variant: 204 198 187; /* #CCC6BB */
+    --outline: 149 144 134;           /* #959086 */
+    --outline-variant: 74 70 62;       /* #4A463E */
+    --error: 255 180 171;              /* #FFB4AB */
+    --error-container: 147 0 10;       /* #93000A */
+    --on-error-container: 255 218 214; /* #FFDAD6 */
+  }
+
   html, body {
     margin: 0;
     padding: 0;
-    background-color: #0B0B0A;
-    color: #F4EFE6;
+    background-color: rgb(var(--canvas));
+    color: rgb(var(--cream-default));
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
@@ -19,21 +120,21 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #161513;
+  background: rgb(var(--surface-low));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #353534;
+  background: rgb(var(--surface-highest));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4EBA86;
+  background: rgb(var(--mint-default));
 }
 
-/* React Flow styling overrides for our dark minimalist lab theme */
+/* React Flow styling overrides */
 .react-flow__background {
-  background-color: #161513 !important;
+  background-color: rgb(var(--surface-low)) !important;
 }
 
 .react-flow__edge-path {
@@ -43,19 +144,19 @@
 .react-flow__handle {
   width: 8px !important;
   height: 8px !important;
-  background: #70DBA4 !important;
-  border: 1px solid #0B0B0A !important;
+  background: rgb(var(--mint-light)) !important;
+  border: 1px solid rgb(var(--canvas)) !important;
 }
 
 /* Glow effects */
 .glow-mint {
-  box-shadow: 0 0 20px rgba(112, 219, 164, 0.25);
+  box-shadow: 0 0 20px rgb(var(--mint-default) / 0.25);
 }
 
 .glow-red {
-  box-shadow: 0 0 25px rgba(224, 86, 86, 0.35);
+  box-shadow: 0 0 25px rgb(var(--contradiction-default) / 0.35);
 }
 
 .glow-cream {
-  box-shadow: 0 0 20px rgba(243, 233, 211, 0.15);
+  box-shadow: 0 0 20px rgb(var(--cream-default) / 0.15);
 }

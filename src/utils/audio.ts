@@ -136,6 +136,39 @@ class AudioManager {
       // Ignore
     }
   }
+
+  // Soft high-tech harmonic click on theme toggle
+  public playThemeToggle(isDark: boolean) {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      // Harmonic sunrise pitch for light mode, warm sunset pitch for dark mode
+      if (isDark) {
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(320, now + 0.07);
+      } else {
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.07);
+      }
+
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } catch {
+      // AudioContext policy fallback
+    }
+  }
 }
 
 export const soundManager = new AudioManager();

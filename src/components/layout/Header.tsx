@@ -1,6 +1,7 @@
 import React from 'react';
 import type { StageId } from '../../engine/types';
 import { Volume2, VolumeX, RotateCcw, Activity } from 'lucide-react';
+import { ThemeToggle } from './ThemeToggle';
 
 import { soundManager } from '../../utils/audio';
 
@@ -31,14 +32,14 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="fixed top-0 left-0 lg:left-20 right-0 h-16 bg-surface-lowest/90 backdrop-blur-md z-40 px-4 border-b border-surface-highest/40 flex items-center justify-between">
+    <header className="fixed top-0 left-0 lg:left-20 right-0 h-16 bg-surface-lowest/90 backdrop-blur-md z-40 px-4 border-b border-surface-highest/40 flex items-center justify-between transition-colors duration-200">
       {/* Brand Identity */}
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={() => onSelectStage('stage-00-intro')}
-          className="flex items-center gap-1.5 text-left group focus:outline-none"
+          className="flex items-center gap-1.5 text-left group focus:outline-none cursor-pointer"
         >
-          <span className="font-display text-xl font-bold tracking-tight text-cream group-hover:text-white transition-colors">
+          <span className="font-display text-xl font-bold tracking-tight text-cream group-hover:text-cream-light transition-colors">
             HALT
           </span>
           <span className="font-mono text-base font-semibold text-mint">//</span>
@@ -63,10 +64,10 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               key={st.id}
               onClick={() => onSelectStage(st.id)}
-              className={`px-3 py-1 rounded-full text-xs font-mono transition-all duration-200 whitespace-nowrap ${
+              className={`px-3 py-1 rounded-full text-xs font-mono transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 isActive
                   ? 'bg-cream text-canvas font-semibold shadow-md glow-cream'
-                  : 'text-cream-dim hover:text-white hover:bg-surface-high'
+                  : 'text-cream-dim hover:text-cream-light hover:bg-surface-high'
               }`}
             >
               <span className="hidden md:inline">{st.label}</span>
@@ -84,6 +85,10 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-cream font-medium">AAD 2026–27</span>
         </div>
 
+        {/* Dark / Light Theme Toggle */}
+        <ThemeToggle variant="header" />
+
+        {/* Audio Synthesizer Telemetry Toggle */}
         <button
           onClick={toggleAudio}
           className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors border cursor-pointer ${
@@ -96,16 +101,19 @@ export const Header: React.FC<HeaderProps> = ({
               ? 'Telemetry Audio: ACTIVE (Synthesizer clicks & feedback enabled - Click to Mute)'
               : 'Telemetry Audio: MUTED (Click to Enable subtle lab audio feedback)'
           }
+          aria-label="Toggle telemetry audio"
           type="button"
         >
           {audioEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
         </button>
 
+        {/* Reset Simulation State */}
         {onResetAll && (
           <button
             onClick={onResetAll}
-            className="w-8 h-8 rounded-full bg-surface-low border border-surface-highest/50 flex items-center justify-center text-muted-light hover:text-white hover:bg-surface-high transition-colors"
+            className="w-8 h-8 rounded-full bg-surface-low border border-surface-highest/50 flex items-center justify-center text-muted-light hover:text-cream-light hover:bg-surface-high transition-colors cursor-pointer"
             title="Reset Global Simulation State"
+            aria-label="Reset simulation"
             type="button"
           >
             <RotateCcw className="w-3.5 h-3.5" />

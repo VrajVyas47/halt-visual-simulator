@@ -502,7 +502,7 @@ export const Stage02Predictor: React.FC<Stage02PredictorProps> = ({
 
           <button
             onClick={onProceedToReality}
-            className="shrink-0 px-6 py-3.5 rounded-full bg-cream hover:bg-white text-canvas font-mono text-xs font-bold tracking-wide transition-all glow-cream hover:glow-mint shadow-xl flex items-center gap-2 cursor-pointer"
+            className="shrink-0 px-6 py-3.5 rounded-full bg-cream hover:bg-cream-light text-canvas font-mono text-xs font-bold tracking-wide transition-all glow-cream hover:glow-mint shadow-xl flex items-center gap-2 cursor-pointer"
             type="button"
           >
             <span>EXPLORE PRACTICAL BOUNDS: REALITY</span>

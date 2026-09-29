@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HALT // ? — The Halting Problem & Computation Simulator</title>
+
+    <!-- Prevent theme flicker on load -->
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('halt_theme');
+          var isDark = stored ? stored === 'dark' : (!window.matchMedia || !window.matchMedia('(prefers-color-scheme: light)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.classList.add('light');
+          }
+        } catch (e) {}
+      })();
+    </script>
     
     <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -18,7 +35,7 @@
       rel="stylesheet"
     />
   </head>
-  <body class="bg-surface-lowest text-on-surface font-sans antialiased selection:bg-mint selection:text-canvas">
+  <body class="bg-canvas text-cream font-sans antialiased selection:bg-mint selection:text-canvas">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
